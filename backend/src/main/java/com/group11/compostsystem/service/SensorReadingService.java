@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.util.List;
 
 @Service
 public class SensorReadingService {
@@ -60,6 +61,22 @@ public class SensorReadingService {
     public SensorReadingResponse getLatestSensorReading() {
         return jdbcTemplate.queryForObject(
                 "SELECT reading_id, moisture_level, gas_level, temperature_c, humidity_level, moisture_status, gas_status, created_at FROM sensor_readings ORDER BY reading_id DESC LIMIT 1",
+                (rs, rowNum) -> new SensorReadingResponse(
+                        rs.getLong("reading_id"),
+                        rs.getBigDecimal("moisture_level"),
+                        rs.getBigDecimal("gas_level"),
+                        rs.getBigDecimal("temperature_c"),
+                        rs.getBigDecimal("humidity_level"),
+                        rs.getString("moisture_status"),
+                        rs.getString("gas_status"),
+                        rs.getTimestamp("created_at")
+                )
+        );
+    }
+
+    public List<SensorReadingResponse> getAllSensorReadings() {
+        return jdbcTemplate.query(
+                "SELECT reading_id, moisture_level, gas_level, temperature_c, humidity_level, moisture_status, gas_status, created_at FROM sensor_readings ORDER BY reading_id DESC",
                 (rs, rowNum) -> new SensorReadingResponse(
                         rs.getLong("reading_id"),
                         rs.getBigDecimal("moisture_level"),

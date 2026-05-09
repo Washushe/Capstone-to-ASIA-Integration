@@ -1,29 +1,40 @@
-﻿import { useMemo, useState, useEffect } from 'react';
+﻿import { useMemo, useRef, useState, useEffect } from 'react';
 import Layout from '../components/Layout.jsx';
-import { getCurrentSensorData, saveLatestSensorSnapshot } from '../services/mockSensors.js';
+import { getCurrentSensorData, saveLatestSensorSnapshot, getLatestSensorSnapshot } from '../services/mockSensors.js';
 import { getThresholdSettings, saveSensorReading } from '../services/api.js';
 
 function Dashboard({ user, online }) {
   const [sensors, setSensors] = useState([]);
   const [thresholds, setThresholds] = useState({ moistureMin: 50, gasMax: 1500 });
+  const thresholdsRef = useRef(thresholds);
+
+  useEffect(() => {
+    thresholdsRef.current = thresholds;
+  }, [thresholds]);
 
   useEffect(() => {
     let active = true;
 
     async function loadData() {
+      let settings = { moistureMin: 50, gasMax: 1500 };
       try {
-        const settings = await getThresholdSettings();
+        const apiSettings = await getThresholdSettings();
+        settings = {
+          moistureMin: apiSettings.moistureMin ?? 50,
+          gasMax: apiSettings.gasMax ?? 1500,
+        };
         if (active) {
-          setThresholds({
-            moistureMin: settings.moistureMin ?? 50,
-            gasMax: settings.gasMax ?? 1500,
-          });
+          setThresholds(settings);
         }
       } catch {
         // Keep default thresholds if backend is unavailable
       }
 
-      const initialData = getCurrentSensorData();
+      const persisted = getLatestSensorSnapshot();
+      const initialData = persisted && persisted.length > 0
+        ? persisted
+        : getCurrentSensorData([], settings);
+
       if (active) {
         setSensors(initialData);
       }
@@ -34,10 +45,12 @@ function Dashboard({ user, online }) {
     loadData();
 
     const interval = setInterval(() => {
-      const updatedData = getCurrentSensorData();
-      setSensors(updatedData);
-      saveLatestSensorSnapshot(updatedData);
-      postSensorReading(updatedData);
+      setSensors((prevSensors) => {
+        const updatedData = getCurrentSensorData(prevSensors, thresholdsRef.current);
+        saveLatestSensorSnapshot(updatedData);
+        postSensorReading(updatedData);
+        return updatedData;
+      });
     }, 60000);
 
     return () => {
@@ -118,6 +131,9 @@ function Dashboard({ user, online }) {
               <div className={`card-status ${status.toLowerCase()}`}>
                 {status}
               </div>
+              {sensor.actuatorActive && sensor.actuatorName && (
+                <div className="card-action">{sensor.actuatorName} active</div>
+              )}
               {sensor.value === null && <p className="placeholder-text">Awaiting sensor data</p>}
             </div>
           );

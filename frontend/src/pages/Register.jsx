@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerUser } from '../services/api.js';
 
+const authIntro = {
+  title: 'Build Your Skills With Compost Intelligence',
+  description:
+    'Monitor compost health and stay on top of environmental conditions with live sensor history, alerts, and actuator response simulation.',
+};
+
 function Register({ onRegister }) {
   const navigate = useNavigate();
 
@@ -11,12 +17,41 @@ function Register({ onRegister }) {
     password: '',
   });
 
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const validate = () => {
+    const validation = {};
+
+    if (!profile.name.trim()) {
+      validation.name = 'Name is required.';
+    }
+
+    if (!profile.email.trim()) {
+      validation.email = 'Email is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
+      validation.email = 'Enter a valid email address.';
+    }
+
+    if (!profile.password) {
+      validation.password = 'Password is required.';
+    } else if (profile.password.length < 8) {
+      validation.password = 'Password must be at least 8 characters.';
+    }
+
+    setErrors(validation);
+    return Object.keys(validation).length === 0;
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError('');
+    setSubmitError('');
+
+    if (!validate()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -24,7 +59,7 @@ function Register({ onRegister }) {
       onRegister(user);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message || 'Registration failed.');
+      setSubmitError(err.message || 'Registration failed.');
     } finally {
       setLoading(false);
     }
@@ -32,15 +67,22 @@ function Register({ onRegister }) {
 
   return (
     <div className="auth-page">
-      <div className="auth-card">
-        <h1>Create your account</h1>
-        <p className="auth-subtitle">
-          Join your IoT compost accelerator management system.
-        </p>
+      <div className="auth-layout">
+        <aside className="auth-overview">
+          <div>
+            <h1 className="auth-main-title">IoT Compost Accelerator</h1>
+            <h2>{authIntro.title}</h2>
+            <p>{authIntro.description}</p>
+          </div>
+        </aside>
 
-        {error && <p className="form-message error">{error}</p>}
+        <div className="auth-card">
+          <h1>Create your account</h1>
+          <p className="auth-subtitle">Join your compost accelerator management system.</p>
 
-        <form onSubmit={handleSubmit} className="auth-form">
+          {submitError && <p className="form-message error">{submitError}</p>}
+
+          <form onSubmit={handleSubmit} className="auth-form">
           <label>
             Name
             <input
@@ -49,8 +91,10 @@ function Register({ onRegister }) {
               onChange={(e) =>
                 setProfile({ ...profile, name: e.target.value })
               }
-              required
             />
+            {errors.name && (
+              <span className="auth-field-error">{errors.name}</span>
+            )}
           </label>
 
           <label>
@@ -61,8 +105,10 @@ function Register({ onRegister }) {
               onChange={(e) =>
                 setProfile({ ...profile, email: e.target.value })
               }
-              required
             />
+            {errors.email && (
+              <span className="auth-field-error">{errors.email}</span>
+            )}
           </label>
 
           <label>
@@ -73,9 +119,10 @@ function Register({ onRegister }) {
               onChange={(e) =>
                 setProfile({ ...profile, password: e.target.value })
               }
-              minLength="8"
-              required
             />
+            {errors.password && (
+              <span className="auth-field-error">{errors.password}</span>
+            )}
           </label>
 
           <button type="submit" className="primary-button" disabled={loading}>
@@ -83,12 +130,13 @@ function Register({ onRegister }) {
           </button>
         </form>
 
-        <div className="auth-footer">
+        <div className="auth-footer auth-footer-right">
           <span>Already have an account?</span>
-          <Link to="/">Login</Link>
+          <Link to="/"> Login</Link>
         </div>
       </div>
     </div>
+  </div>
   );
 }
 

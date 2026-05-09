@@ -46,7 +46,10 @@ function ThresholdSection() {
         moistureMin: saved.moistureMin,
         gasMax: saved.gasMax,
       });
-      setStatusMessage('Threshold values saved successfully.');
+      setStatusMessage('');
+      setTimeout(() => {
+        setStatusMessage('Threshold values saved successfully.');
+      }, 100);
     } catch (error) {
       saveLocalThresholds(thresholds);
       setStatusMessage('Unable to save to backend. Values are saved locally.');
@@ -92,7 +95,11 @@ function ThresholdSection() {
         <button className="save-button" onClick={handleSave}>
           Save Changes
         </button>
-        {statusMessage && <p className="form-message">{statusMessage}</p>}
+        {statusMessage && (
+          <p className={`form-message ${'success' in statusMessage || statusMessage.includes('saved') ? 'success' : 'error'}`}>
+            {statusMessage}
+          </p>
+        )}
       </div>
     </div>
   );

@@ -48,6 +48,20 @@ export async function getLatestSensorReading() {
   return request('/sensor-readings/latest', { method: 'GET' });
 }
 
+export async function getSensorReadings() {
+  return request('/sensor-readings', { method: 'GET' });
+}
+
+export async function getAIPredictions(selectedSensors) {
+  return request('/ai/predict', {
+    method: 'POST',
+    body: JSON.stringify({
+      sensors: selectedSensors,
+      lookback: 20,
+    }),
+  });
+}
+
 export async function registerUser(profile) {
   const data = await request('/auth/register', {
     method: 'POST',

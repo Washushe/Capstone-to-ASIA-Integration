@@ -32,15 +32,19 @@ button {
 }
 
 .dashboard-shell {
-  display: grid;
-  grid-template-columns: 280px 1fr;
   min-height: 100vh;
 }
 
 .sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  width: 280px;
   background: linear-gradient(180deg, #111827, #0b1221);
   padding: 32px 24px;
   border-right: 1px solid rgba(148, 163, 184, 0.12);
+  z-index: 10;
 }
 
 .brand {
@@ -69,28 +73,35 @@ button {
 }
 
 .dashboard-main {
+  margin-left: 280px;
   padding: 24px 28px;
 }
 
 .topbar {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
   align-items: center;
+  justify-content: space-between;
+  gap: 18px;
   padding: 22px 28px;
   background: rgba(30, 41, 59, 0.8);
   border-radius: 24px;
   margin-bottom: 24px;
 }
 
+.topbar > div:first-child {
+  display: grid;
+  gap: 6px;
+}
+
 .topbar-label {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 700;
+  color: #e2e8f0;
 }
 
 .topbar-subtext {
   color: #94a3b8;
-  margin-top: 4px;
+  margin-top: 0;
 }
 
 .topbar-right {
@@ -145,6 +156,111 @@ button {
   gap: 18px;
 }
 
+@media (max-width: 1200px) {
+  .cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.prediction-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.prediction-card,
+.prediction-summary {
+  padding: 24px;
+  border-radius: 24px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.prediction-card {
+  display: grid;
+  gap: 18px;
+}
+
+.prediction-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sensor-toggle {
+  border: none;
+  border-radius: 16px;
+  padding: 12px 18px;
+  background: rgba(30, 41, 59, 0.9);
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.sensor-toggle.active,
+.sensor-toggle:hover {
+  background: rgba(59, 130, 246, 0.18);
+  color: #eff6ff;
+}
+
+.chart-frame {
+  min-height: 320px;
+  padding: 20px;
+  background: rgba(30, 41, 59, 0.8);
+  border-radius: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.sensor-chart {
+  width: 100%;
+  height: 320px;
+}
+
+.legend-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #cbd5e1;
+}
+
+.legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 6px;
+}
+
+.prediction-summary h3 {
+  margin: 0 0 12px;
+}
+
+.prediction-summary p {
+  margin: 0 0 12px;
+  color: #cbd5e1;
+}
+
+@media (min-width: 901px) {
+  .prediction-grid {
+    grid-template-columns: 1.2fr 0.8fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .prediction-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .status-card {
   padding: 22px;
   border-radius: 22px;
@@ -181,6 +297,17 @@ button {
   width: fit-content;
   font-size: 0.9rem;
   font-weight: 700;
+}
+
+.card-action {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: rgba(59, 130, 246, 0.14);
+  color: #bfdbfe;
+  border-radius: 999px;
+  width: fit-content;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .card-status.optimal {
@@ -329,26 +456,82 @@ button {
   color: #e2e8f0;
 }
 
-.primary-button {
-  width: 100%;
-  background: #2563eb;
-  color: #fff;
+.auth-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.1fr) minmax(360px, 0.9fr);
+  gap: 32px;
+  width: min(1040px, 100%);
+}
+
+.auth-overview {
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 28px;
+  padding: 48px 36px;
+  display: grid;
+  gap: 24px;
+  min-height: 420px;
+  align-content: center;
+  text-align: center;
+}
+
+.auth-overview > div {
+  display: grid;
+  gap: 20px;
+}
+
+.auth-overview h2 {
+  margin: 0;
+  font-size: 2rem;
   font-weight: 700;
+  line-height: 1.3;
+  color: #f8fafc;
 }
 
-.primary-button:hover {
-  background: #1d4ed8;
+.auth-overview p {
+  margin: 0;
+  font-size: 1rem;
+  color: #cbd5e1;
+  line-height: 1.6;
 }
 
-.auth-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  color: #94a3b8;
+.auth-overview-label {
+  display: inline-flex;
+  color: #60a5fa;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
 }
 
-@media (max-width: 1120px) {
+.auth-main-title {
+  margin: 0;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  letter-spacing: -0.02em;
+}
+
+.auth-field-error {
+  display: block;
+  margin-top: 8px;
+  color: #fecaca;
+  font-size: 0.9rem;
+}
+
+.auth-footer-right {
+  justify-content: flex-end;
+}
+
+@media (max-width: 920px) {
+  .auth-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-overview {
+    min-height: auto;
+  }
+
   .dashboard-shell {
     grid-template-columns: 1fr;
   }
@@ -481,12 +664,12 @@ button {
   }
 }
 
-.full-screen {
-  grid-template-columns: 1fr;
-}
-
 .full-screen .dashboard-main {
   margin-left: 0;
+}
+
+.full-screen .sidebar {
+  display: none;
 }
 
 .settings-top-row {
@@ -574,9 +757,15 @@ button {
 .settings-header-row {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 18px;
-  margin-bottom: 4px;
+  margin-bottom: 12px;
+}
+
+.settings-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .settings-main-title {
@@ -589,6 +778,7 @@ button {
   display: grid;
   grid-template-columns: 240px 1fr;
   gap: 18px;
+  align-items: start;
 }
 
 .settings-inner-sidebar {
@@ -598,6 +788,7 @@ button {
   border-radius: 22px;
   background: rgba(15, 23, 42, 0.95);
   border: 1px solid rgba(148, 163, 184, 0.12);
+  align-self: start;
 }
 
 .settings-inner-sidebar button {
@@ -729,6 +920,28 @@ button {
   background: rgba(239, 68, 68, 0.12);
   color: #b91c1c;
   border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.form-message.success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.save-button {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: background 0.2s ease;
+}
+
+.save-button:hover {
+  background: #1d4ed8;
 }
 
 .primary-button:disabled {

@@ -1,65 +1,121 @@
 ﻿import { useState, useEffect } from 'react';
-import { getLatestSensorSnapshot, getThresholds as getLocalThresholds } from '../../services/mockSensors.js';
-import { getThresholdSettings } from '../../services/api.js';
+import {
+  getLatestSensorReading,
+  getSensorReadings,
+  getThresholdSettings,
+} from '../../services/api.js';
+
+const defaultThresholds = { moistureMin: 50, gasMax: 1500 };
+
+function getActuatorEvent(reading, thresholds) {
+  const gasHigh = reading.gasStatus === 'HIGH';
+  const moistureLow = reading.moistureStatus === 'LOW';
+  const moistureHigh = reading.moistureStatus === 'HIGH';
+  const temperatureHigh = reading.temperatureC > 35;
+
+  if (gasHigh || temperatureHigh) {
+    return {
+      event: 'Fan activated for 5 seconds',
+      cause: 'Gas exceeded threshold limit',
+      status: 'HIGH',
+    };
+  }
+
+  if (moistureLow) {
+    return {
+      event: 'Water pump activated for 5 seconds',
+      cause: 'Moisture dropped below threshold limit',
+      status: 'LOW',
+    };
+  }
+
+  if (moistureHigh) {
+    return {
+      event: 'Moisture release system activated for 5 seconds',
+      cause: 'Moisture exceeded safe range',
+      status: 'HIGH',
+    };
+  }
+
+  return {
+    event: 'No actuator event triggered',
+    cause: 'All sensor levels are within normal thresholds',
+    status: 'NORMAL',
+  };
+}
 
 function ActuatorSection() {
-  const [sensorSnapshot, setSensorSnapshot] = useState(null);
-  const [thresholds, setThresholds] = useState({ moistureMin: 50, gasMax: 1500 });
+  const [latestReading, setLatestReading] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [thresholds, setThresholds] = useState(defaultThresholds);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const snapshot = getLatestSensorSnapshot();
-    if (snapshot) {
-      setSensorSnapshot(snapshot);
-    }
-
-    async function loadThresholds() {
+    async function loadData() {
       try {
-        const settings = await getThresholdSettings();
+        const [settings, allReadings] = await Promise.all([
+          getThresholdSettings(),
+          getSensorReadings(),
+        ]);
         setThresholds({
           moistureMin: settings.moistureMin ?? 50,
           gasMax: settings.gasMax ?? 1500,
         });
+        setHistory(allReadings);
+        setLatestReading(allReadings?.[0] ?? null);
       } catch {
-        setThresholds(getLocalThresholds());
+        setThresholds(defaultThresholds);
+      } finally {
+        setLoading(false);
       }
     }
 
-    loadThresholds();
+    loadData();
   }, []);
 
-  const getValue = (id) => sensorSnapshot?.find((item) => item.id === id)?.value;
-  const moisture = getValue('moisture');
-  const gas = getValue('gas');
-  const temperature = getValue('temperature');
+  if (loading) {
+    return (
+      <div className="info-box settings-full-box">
+        <h4>Actuator Controls</h4>
+        <p>Loading latest actuator status...</p>
+      </div>
+    );
+  }
 
-  const fanActive = gas > thresholds.gasMax || temperature > 35;
-  const waterActive = moisture < thresholds.moistureMin;
-  const heaterActive = temperature < 25;
-  const stirrerActive = moisture < thresholds.moistureMin || gas > thresholds.gasMax;
+  if (!latestReading) {
+    return (
+      <div className="info-box settings-full-box">
+        <h4>Actuator Controls</h4>
+        <p>No sensor reading is available yet to calculate actuator behavior.</p>
+      </div>
+    );
+  }
 
-  const statusText = (active, label) => (active ? `${label} Active` : `${label} Idle`);
+  const { moistureLevel, gasLevel, temperatureC } = latestReading;
+  const fanActive = gasLevel > thresholds.gasMax || temperatureC > 35;
+  const waterActive = moistureLevel < thresholds.moistureMin;
 
   return (
     <div className="info-box settings-full-box">
       <h4>Actuator Controls</h4>
-      <p>These statuses reflect current actuator activity based on the latest sensor snapshot.</p>
+      <p>Actuator status is simulated from the latest recorded sensor reading and current threshold settings.</p>
+
       <div className="actuator-status-grid">
         <div className="actuator-card">
           <div className="actuator-title">Fan</div>
           <div className={`actuator-badge ${fanActive ? 'active' : 'inactive'}`}>
-            {statusText(fanActive, 'Fan')}
+            {fanActive ? 'Running' : 'Idle'}
           </div>
-          <p>{fanActive ? 'Cooling and venting are active.' : 'Fan is idle.'}</p>
+          <p>{fanActive ? 'Fan is running to reduce high gas/temperature levels.' : 'Fan is not currently required.'}</p>
         </div>
         <div className="actuator-card">
           <div className="actuator-title">Water Pump</div>
           <div className={`actuator-badge ${waterActive ? 'active' : 'inactive'}`}>
-            {statusText(waterActive, 'Water pump')}
+            {waterActive ? 'Running' : 'Idle'}
           </div>
-          <p>{waterActive ? 'Moisture is low; pump is engaged.' : 'Moisture is within range.'}</p>
+          <p>{waterActive ? 'Water pump is active due to moisture below threshold.' : 'Moisture is within the normal range.'}</p>
         </div>
       </div>
-      <p className="note-text">This is a simulated actuator status indicator. No hardware is currently connected.</p>
     </div>
   );
 }

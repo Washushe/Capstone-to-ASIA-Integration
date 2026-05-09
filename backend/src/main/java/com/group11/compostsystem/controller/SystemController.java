@@ -44,4 +44,9 @@ public class SystemController {
     public ResponseEntity<SensorReadingResponse> getLatestReading() {
         return ResponseEntity.ok(sensorReadingService.getLatestSensorReading());
     }
+
+    @GetMapping("/sensor-readings")
+    public ResponseEntity<java.util.List<SensorReadingResponse>> getAllReadings() {
+        return ResponseEntity.ok(sensorReadingService.getAllSensorReadings());
+    }
 }

@@ -15,13 +15,16 @@ function Settings({ user, online, onLogout }) {
       title="Settings"
       subtitle=""
       online={online}
-      hideSidebar
+      hideSidebar={true}
     >
       <div className="settings-page-wrapper">
         <div className="settings-header-row">
-          <button className="back-button" onClick={() => navigate('/dashboard')}>
-            ← Back
-          </button>
+          <div className="settings-header-left">
+            <button className="back-button" onClick={() => navigate('/dashboard')}>
+              ← Back
+            </button>
+            <h1 className="settings-main-title">Settings</h1>
+          </div>
         </div>
 
         <div className="settings-screen">
