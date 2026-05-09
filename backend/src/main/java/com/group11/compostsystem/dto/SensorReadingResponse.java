@@ -1,0 +1,61 @@
+package com.group11.compostsystem.dto;
+
+import java.math.BigDecimal;
+import java.sql.Timestamp;
+
+public class SensorReadingResponse {
+
+    private Long readingId;
+    private BigDecimal moistureLevel;
+    private BigDecimal gasLevel;
+    private BigDecimal temperatureC;
+    private BigDecimal humidityLevel;
+    private String moistureStatus;
+    private String gasStatus;
+    private Timestamp createdAt;
+
+    public SensorReadingResponse(Long readingId, BigDecimal moistureLevel, BigDecimal gasLevel,
+                                 BigDecimal temperatureC, BigDecimal humidityLevel,
+                                 String moistureStatus, String gasStatus, Timestamp createdAt) {
+        this.readingId = readingId;
+        this.moistureLevel = moistureLevel;
+        this.gasLevel = gasLevel;
+        this.temperatureC = temperatureC;
+        this.humidityLevel = humidityLevel;
+        this.moistureStatus = moistureStatus;
+        this.gasStatus = gasStatus;
+        this.createdAt = createdAt;
+    }
+
+    public Long getReadingId() {
+        return readingId;
+    }
+
+    public BigDecimal getMoistureLevel() {
+        return moistureLevel;
+    }
+
+    public BigDecimal getGasLevel() {
+        return gasLevel;
+    }
+
+    public BigDecimal getTemperatureC() {
+        return temperatureC;
+    }
+
+    public BigDecimal getHumidityLevel() {
+        return humidityLevel;
+    }
+
+    public String getMoistureStatus() {
+        return moistureStatus;
+    }
+
+    public String getGasStatus() {
+        return gasStatus;
+    }
+
+    public Timestamp getCreatedAt() {
+        return createdAt;
+    }
+}

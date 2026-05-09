@@ -10,7 +10,7 @@ async function request(path, options) {
 
   const data = await response.json();
 
-  if (!response.ok || data.success === false) {
+  if (!response.ok) {
     throw new Error(data.message || 'Request failed.');
   }
 
@@ -24,6 +24,28 @@ export async function loginUser(credentials) {
   });
 
   return data.user;
+}
+
+export async function getThresholdSettings() {
+  return request('/settings/thresholds', { method: 'GET' });
+}
+
+export async function saveThresholdSettings(thresholds) {
+  return request('/settings/thresholds', {
+    method: 'PUT',
+    body: JSON.stringify(thresholds),
+  });
+}
+
+export async function saveSensorReading(reading) {
+  return request('/sensor-readings', {
+    method: 'POST',
+    body: JSON.stringify(reading),
+  });
+}
+
+export async function getLatestSensorReading() {
+  return request('/sensor-readings/latest', { method: 'GET' });
 }
 
 export async function registerUser(profile) {
