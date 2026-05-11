@@ -100,7 +100,9 @@ public class SensorReadingService {
         return "NORMAL";
     }
 
+    private static final BigDecimal GAS_HIGH_THRESHOLD = new BigDecimal("1200");
+
     private String determineGasStatus(BigDecimal gasLevel, BigDecimal gasMax) {
-        return gasLevel.compareTo(gasMax) > 0 ? "HIGH" : "NORMAL";
+        return gasLevel.compareTo(GAS_HIGH_THRESHOLD) > 0 ? "HIGH" : "NORMAL";
     }
 }

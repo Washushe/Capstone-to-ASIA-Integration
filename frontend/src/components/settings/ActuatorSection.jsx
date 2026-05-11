@@ -5,7 +5,8 @@ import {
   getThresholdSettings,
 } from '../../services/api.js';
 
-const defaultThresholds = { moistureMin: 50, gasMax: 1500 };
+const GAS_HIGH_THRESHOLD = 1200;
+const defaultThresholds = { moistureMin: 50, gasMax: GAS_HIGH_THRESHOLD };
 
 function getActuatorEvent(reading, thresholds) {
   const gasHigh = reading.gasStatus === 'HIGH';
@@ -59,7 +60,7 @@ function ActuatorSection() {
         ]);
         setThresholds({
           moistureMin: settings.moistureMin ?? 50,
-          gasMax: settings.gasMax ?? 1500,
+          gasMax: settings.gasMax ?? GAS_HIGH_THRESHOLD,
         });
         setHistory(allReadings);
         setLatestReading(allReadings?.[0] ?? null);
@@ -92,7 +93,7 @@ function ActuatorSection() {
   }
 
   const { moistureLevel, gasLevel, temperatureC } = latestReading;
-  const fanActive = gasLevel > thresholds.gasMax || temperatureC > 35;
+  const fanActive = gasLevel > GAS_HIGH_THRESHOLD || temperatureC > 35;
   const waterActive = moistureLevel < thresholds.moistureMin;
 
   return (

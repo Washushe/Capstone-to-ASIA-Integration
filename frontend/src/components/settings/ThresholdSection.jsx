@@ -15,7 +15,7 @@ function ThresholdSection() {
         const data = await getThresholdSettings();
         setThresholds({
           moistureMin: data.moistureMin ?? 50,
-          gasMax: data.gasMax ?? 1500,
+          gasMax: data.gasMax ?? 1200,
         });
       } catch {
         setThresholds(getLocalThresholds());
@@ -86,7 +86,7 @@ function ThresholdSection() {
                 type="number"
                 value={thresholds.gasMax}
                 onChange={(e) => handleChange('gasMax', e.target.value)}
-                placeholder="1500"
+                placeholder="1200"
               />
             </label>
           </div>

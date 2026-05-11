@@ -29,7 +29,7 @@ public class ThresholdService {
                     )
             );
         } catch (EmptyResultDataAccessException ex) {
-            return new ThresholdSettingsResponse(new BigDecimal("50"), new BigDecimal("1500"), null, null);
+            return new ThresholdSettingsResponse(new BigDecimal("50"), new BigDecimal("1200"), null, null);
         }
     }
 

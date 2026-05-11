@@ -45,11 +45,58 @@ export async function saveSensorReading(reading) {
 }
 
 export async function getLatestSensorReading() {
-  return request('/sensor-readings/latest', { method: 'GET' });
+  const response = await fetch(`${API_BASE_URL}/sensor-readings/latest`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Request failed.');
+  }
+
+  return data;
 }
+
+export const getSensorSimulation = async (lastReading = [], moistureMin = 50, gasMax = 1200) => {
+  const response = await fetch(`${API_BASE_URL}/sensor-simulation`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      lastReading: lastReading,
+      moistureMin: moistureMin,
+      gasMax: gasMax
+    }),
+  });
+  return response.json();
+};
+
+export const getActuatorStatus = async () => {
+  const response = await fetch(`${API_BASE_URL}/actuator-status`);
+  return response.json();
+};
 
 export async function getSensorReadings() {
   return request('/sensor-readings', { method: 'GET' });
+}
+
+export async function simulateNextSensorReading(lastReading, thresholds) {
+  return request('/sensor-simulation', {
+    method: 'POST',
+    body: JSON.stringify({
+      lastReading: lastReading,
+      moistureMin: thresholds.moistureMin,
+      gasMax: thresholds.gasMax,
+    }),
+  });
 }
 
 export async function getAIPredictions(selectedSensors) {
