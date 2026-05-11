@@ -68,16 +68,21 @@ public class SensorSimulationService {
         switch (sensorId) {
             case "gas":
                 if (fanActive && lastValue > gasMax) {
-                    return 1000.0; // Optimal gas level in ppm
+                    // Reduce to optimal range when fan is active
+                    return gasMax - 50 + ((Math.random() - 0.5) * 20);
                 } else if (lastValue > gasMax) {
+                    // Continue decreasing when high
                     return lastValue - (30 + Math.random() * 15) + noise;
-                } else if (lastValue < gasMax - 100) {
-                    return lastValue + (Math.random() * 30) + noise;
+                } else if (lastValue < 800) {
+                    // Increase when low
+                    return lastValue + (Math.random() * 50) + noise;
                 } else {
-                    return lastValue + noise;
+                    // Normal fluctuation in optimal range
+                    return lastValue + ((Math.random() - 0.5) * 100) + noise;
                 }
 
             case "temperature":
+                // Keep temperature in optimal range (25-35°C)
                 if (fanActive && lastValue > 35) {
                     return lastValue - (2.5 + Math.random() * 2) + noise;
                 } else if (lastValue > 35) {
@@ -90,19 +95,24 @@ public class SensorSimulationService {
 
             case "moisture":
                 if (pumpActive && lastValue < moistureMin) {
-                    return lastValue + (8 + Math.random() * 6) + noise;
+                    // Increase to optimal range when pump is active
+                    return moistureMin + 10 + ((Math.random() - 0.5) * 5);
                 } else if (lastValue < moistureMin) {
+                    // Continue increasing when low
                     return lastValue + (3 + Math.random() * 2) + noise;
                 } else if (lastValue > 75) {
-                    return lastValue - (Math.random() * 3) + noise;
+                    // Decrease when high
+                    return lastValue - (Math.random() * 5) + noise;
                 } else {
-                    return lastValue + noise;
+                    // Normal fluctuation in optimal range
+                    return lastValue + ((Math.random() - 0.5) * 10) + noise;
                 }
 
             case "humidity":
+                // Keep humidity in optimal range (45-75%)
                 if (fanActive) {
                     return lastValue - (0.5 + Math.random() * 1) + noise;
-                } else if (lastValue > 70) {
+                } else if (lastValue > 75) {
                     return lastValue - (Math.random() * 2) + noise;
                 } else if (lastValue < 45) {
                     return lastValue + (Math.random() * 2) + noise;

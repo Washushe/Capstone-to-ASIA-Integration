@@ -28,7 +28,7 @@ function Dashboard({ user, online }) {
         const apiSettings = await getThresholdSettings();
         settings = {
           moistureMin: apiSettings.moistureMin ?? 50,
-          gasMax: GAS_HIGH_THRESHOLD,
+          gasMax: apiSettings.gasMax ?? GAS_HIGH_THRESHOLD,
         };
         if (active) {
           setThresholds(settings);
@@ -62,8 +62,8 @@ function Dashboard({ user, online }) {
               name: 'Gas Concentration',
               value: latestReading.gasLevel,
               unit: 'PPM',
-              actuatorActive: latestReading.gasLevel > GAS_HIGH_THRESHOLD,
-              actuatorName: latestReading.gasLevel > GAS_HIGH_THRESHOLD ? 'Fan' : null,
+              actuatorActive: latestReading.gasLevel > settings.gasMax,
+              actuatorName: latestReading.gasLevel > settings.gasMax ? 'Fan' : null,
             },
             {
               id: 'humidity',
@@ -166,10 +166,14 @@ function Dashboard({ user, online }) {
 
   const getStatus = (sensor) => {
     if (sensor.id === 'moisture') {
-      return sensor.value < thresholds.moistureMin ? 'Low' : 'Optimal';
+      if (sensor.value < thresholds.moistureMin) return 'Low';
+      if (sensor.value > 75) return 'High';
+      return 'Optimal';
     }
     if (sensor.id === 'gas') {
-      return sensor.value > GAS_HIGH_THRESHOLD ? 'High' : 'Optimal';
+      if (sensor.value < 800) return 'Low';
+      if (sensor.value > thresholds.gasMax) return 'High';
+      return 'Optimal';
     }
     if (sensor.id === 'temperature') {
       if (sensor.value > 35) return 'High';

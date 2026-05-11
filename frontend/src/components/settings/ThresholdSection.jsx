@@ -8,6 +8,7 @@ function ThresholdSection() {
     gasMax: '',
   });
   const [statusMessage, setStatusMessage] = useState('');
+  const [statusType, setStatusType] = useState(''); // 'success' or 'error'
 
   useEffect(() => {
     async function loadThresholds() {
@@ -46,13 +47,12 @@ function ThresholdSection() {
         moistureMin: saved.moistureMin,
         gasMax: saved.gasMax,
       });
-      setStatusMessage('');
-      setTimeout(() => {
-        setStatusMessage('Threshold values saved successfully.');
-      }, 100);
+      setStatusMessage('Sensor data threshold has been set.');
+      setStatusType('success');
     } catch (error) {
       saveLocalThresholds(thresholds);
       setStatusMessage('Unable to save to backend. Values are saved locally.');
+      setStatusType('error');
     }
   };
 
@@ -96,7 +96,7 @@ function ThresholdSection() {
           Save Changes
         </button>
         {statusMessage && (
-          <p className={`form-message ${'success' in statusMessage || statusMessage.includes('saved') ? 'success' : 'error'}`}>
+          <p className={`form-message ${statusType}`}>
             {statusMessage}
           </p>
         )}
