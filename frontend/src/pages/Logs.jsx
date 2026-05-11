@@ -2,67 +2,34 @@ import { useEffect, useState } from 'react';
 import Layout from '../components/Layout.jsx';
 import { getSensorReadings } from '../services/api.js';
 
-function deriveLogEntry(reading) {
-  const gasHigh = reading.gasStatus === 'HIGH';
-  const moistureLow = reading.moistureStatus === 'LOW';
-  const moistureHigh = reading.moistureStatus === 'HIGH';
-
-  let event = 'System stable';
-  let source = 'No threshold exceeded';
-  let status = 'NORMAL';
-
-  if (gasHigh) {
-    event = 'Fan triggered for 5 seconds';
-    source = 'Gas exceeded the threshold limit';
-    status = 'HIGH';
-  } else if (moistureLow) {
-    event = 'Water pump triggered for 5 seconds';
-    source = 'Moisture dropped below the threshold';
-    status = 'LOW';
-  } else if (moistureHigh) {
-    event = 'Moisture release system activated for 5 seconds';
-    source = 'Moisture exceeded the safe range';
-    status = 'HIGH';
-  }
-
-  return {
-    event,
-    source,
-    status,
-    timestamp: new Date(reading.createdAt).toLocaleString(),
-    id: reading.readingId,
-  };
-}
-
 function Logs({ user, online, setOnline }) {
-  const [logEntries, setLogEntries] = useState([]);
+  const [sensorReadings, setSensorReadings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadLogs() {
+    async function loadSensorReadings() {
       try {
         const readings = await getSensorReadings();
-        const allEntries = readings.map(deriveLogEntry);
-        // Filter to show only entries where an actuator was triggered
-        const triggeredEntries = allEntries.filter(
-          (entry) => entry.status !== 'NORMAL' || entry.event !== 'System stable'
-        );
-        setLogEntries(triggeredEntries);
+        // Sort by timestamp descending (newest first) and take latest 50
+        const sortedReadings = readings
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+          .slice(0, 50);
+        setSensorReadings(sortedReadings);
       } catch (error) {
-        setLogEntries([]);
+        setSensorReadings([]);
       } finally {
         setLoading(false);
       }
     }
 
-    loadLogs();
+    loadSensorReadings();
   }, []);
 
   return (
     <Layout
       user={user}
       title="Logs / History"
-      subtitle="View sensor and system events from recorded readings"
+      subtitle="View latest sensor readings from the database"
       online={online}
       setOnline={setOnline}
     >
@@ -70,32 +37,42 @@ function Logs({ user, online, setOnline }) {
         <table className="logs-table">
           <thead>
             <tr>
-              <th>Event</th>
-              <th>Source</th>
-              <th>Status</th>
               <th>Timestamp</th>
+              <th>Temperature (°C)</th>
+              <th>Moisture (%)</th>
+              <th>Gas (PPM)</th>
+              <th>Humidity (%)</th>
+              <th>Moisture Status</th>
+              <th>Gas Status</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="4" className="empty-state">
-                  Loading log entries...
+                <td colSpan="7" className="empty-state">
+                  Loading sensor readings...
                 </td>
               </tr>
-            ) : logEntries.length === 0 ? (
+            ) : sensorReadings.length === 0 ? (
               <tr>
-                <td colSpan="4" className="empty-state">
-                  No log entries available yet.
+                <td colSpan="7" className="empty-state">
+                  No sensor readings available yet.
                 </td>
               </tr>
             ) : (
-              logEntries.map((entry) => (
-                <tr key={entry.id}>
-                  <td>{entry.event}</td>
-                  <td>{entry.source}</td>
-                  <td>{entry.status}</td>
-                  <td>{entry.timestamp}</td>
+              sensorReadings.map((reading) => (
+                <tr key={reading.readingId}>
+                  <td>{new Date(reading.createdAt).toLocaleString()}</td>
+                  <td>{reading.temperatureC?.toFixed(1) || '--'}</td>
+                  <td>{reading.moistureLevel?.toFixed(1) || '--'}</td>
+                  <td>{reading.gasLevel?.toFixed(1) || '--'}</td>
+                  <td>{reading.humidityLevel?.toFixed(1) || '--'}</td>
+                  <td className={`status-${reading.moistureStatus?.toLowerCase() || 'unknown'}`}>
+                    {reading.moistureStatus || 'Unknown'}
+                  </td>
+                  <td className={`status-${reading.gasStatus?.toLowerCase() || 'unknown'}`}>
+                    {reading.gasStatus || 'Unknown'}
+                  </td>
                 </tr>
               ))
             )}

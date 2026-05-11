@@ -221,6 +221,12 @@ function Dashboard({ user, online }) {
               <div className={`card-status ${status.toLowerCase()}`}>
                 {status}
               </div>
+              <div className="card-description">
+                {sensor.id === 'gas' && 'Fan is active when gas hits high'}
+                {sensor.id === 'moisture' && 'Spray is active when moisture hits low'}
+                {sensor.id === 'temperature' && 'Fan is active when temperature exceeds 35°C'}
+                {sensor.id === 'humidity' && 'Humidity monitoring'}
+              </div>
               {sensor.actuatorActive && sensor.actuatorName && (
                 <div className="card-action">{sensor.actuatorName} active</div>
               )}
