@@ -1,21 +1,30 @@
 const API_BASE_URL = 'http://localhost:8080/api';
 
-async function request(path, options) {
+async function request(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(options.headers || {}),
     },
     ...options,
   });
 
+  if (response.status === 204) {
+    return null;
+  }
+
   const data = await response.json();
 
-  if (!response.ok) {
+  if (!response.ok || data.success === false) {
     throw new Error(data.message || 'Request failed.');
   }
 
   return data;
 }
+
+// ==========================
+// AUTHENTICATION
+// ==========================
 
 export async function loginUser(credentials) {
   const data = await request('/auth/login', {
@@ -26,8 +35,23 @@ export async function loginUser(credentials) {
   return data.user;
 }
 
+export async function registerUser(profile) {
+  const data = await request('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(profile),
+  });
+
+  return data.user;
+}
+
+// ==========================
+// THRESHOLD SETTINGS
+// ==========================
+
 export async function getThresholdSettings() {
-  return request('/settings/thresholds', { method: 'GET' });
+  return request('/settings/thresholds', {
+    method: 'GET',
+  });
 }
 
 export async function saveThresholdSettings(thresholds) {
@@ -37,6 +61,10 @@ export async function saveThresholdSettings(thresholds) {
   });
 }
 
+// ==========================
+// SENSOR READINGS
+// ==========================
+
 export async function saveSensorReading(reading) {
   return request('/sensor-readings', {
     method: 'POST',
@@ -45,75 +73,66 @@ export async function saveSensorReading(reading) {
 }
 
 export async function getLatestSensorReading() {
-  const response = await fetch(`${API_BASE_URL}/sensor-readings/latest`, {
+  return request('/sensor-readings/latest', {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
   });
-
-  if (response.status === 204) {
-    return null;
-  }
-
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.message || 'Request failed.');
-  }
-
-  return data;
 }
 
-export const getSensorSimulation = async (lastReading = [], moistureMin = 50, gasMax = 1200) => {
-  const response = await fetch(`${API_BASE_URL}/sensor-simulation`, {
+export async function getSensorReadings() {
+  return request('/sensor-readings', {
+    method: 'GET',
+  });
+}
+
+// ==========================
+// SENSOR SIMULATION
+// ==========================
+
+export async function getSensorSimulation(
+  lastReading = [],
+  moistureMin = 50,
+  gasMax = 1200
+) {
+  return request('/sensor-simulation', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify({
-      lastReading: lastReading,
-      moistureMin: moistureMin,
-      gasMax: gasMax
+      lastReading,
+      moistureMin,
+      gasMax,
     }),
   });
-  return response.json();
-};
-
-export const getActuatorStatus = async () => {
-  const response = await fetch(`${API_BASE_URL}/actuator-status`);
-  return response.json();
-};
-
-export async function getSensorReadings() {
-  return request('/sensor-readings', { method: 'GET' });
 }
 
 export async function simulateNextSensorReading(lastReading, thresholds) {
   return request('/sensor-simulation', {
     method: 'POST',
     body: JSON.stringify({
-      lastReading: lastReading,
+      lastReading,
       moistureMin: thresholds.moistureMin,
       gasMax: thresholds.gasMax,
     }),
   });
 }
 
-export async function getAIPredictions(selectedSensors) {
-  return request('/ai/predict', {
-    method: 'POST',
-    body: JSON.stringify({
-      sensors: selectedSensors,
-      lookback: 20,
-    }),
+// ==========================
+// ACTUATOR STATUS
+// ==========================
+
+export async function getActuatorStatus() {
+  return request('/actuator-status', {
+    method: 'GET',
   });
 }
 
-export async function registerUser(profile) {
-  const data = await request('/auth/register', {
-    method: 'POST',
-    body: JSON.stringify(profile),
-  });
+// ==========================
+// AI PREDICTION
+// ==========================
 
-  return data.user;
+export async function generateAIPrediction(batchId = 1, daysWindow = 21) {
+  return request(`/predictions/generate/${batchId}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      daysWindow,
+    }),
+  });
 }

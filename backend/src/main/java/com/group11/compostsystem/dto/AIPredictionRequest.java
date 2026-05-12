@@ -1,24 +1,31 @@
 package com.group11.compostsystem.dto;
 
-import java.util.List;
-
 public class AIPredictionRequest {
-    private List<String> sensors;
-    private Integer lookback;
 
-    public List<String> getSensors() {
-        return sensors;
+    private Integer batchId;
+    private Integer daysWindow;
+
+    public AIPredictionRequest() {
     }
 
-    public void setSensors(List<String> sensors) {
-        this.sensors = sensors;
+    public AIPredictionRequest(Integer batchId, Integer daysWindow) {
+        this.batchId = batchId;
+        this.daysWindow = daysWindow;
     }
 
-    public Integer getLookback() {
-        return lookback;
+    public Integer getBatchId() {
+        return batchId;
     }
 
-    public void setLookback(Integer lookback) {
-        this.lookback = lookback;
+    public void setBatchId(Integer batchId) {
+        this.batchId = batchId;
+    }
+
+    public Integer getDaysWindow() {
+        return daysWindow;
+    }
+
+    public void setDaysWindow(Integer daysWindow) {
+        this.daysWindow = daysWindow;
     }
 }

@@ -1,148 +1,190 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import Layout from '../components/Layout.jsx';
-import { getAIPredictions } from '../services/api.js';
-
-const sampleHistory = Array.from({ length: 20 }, (_, index) => {
-  const time = `${index + 1}h`;
-  return {
-    time,
-    temperature: 24 + Math.sin(index / 3) * 3 + Math.random() * 0.5,
-    moisture: 58 + Math.cos(index / 4) * 8 + Math.random() * 0.5,
-    gas: 950 + Math.sin(index / 2) * 140 + Math.random() * 8,
-    humidity: 52 + Math.cos(index / 3) * 10 + Math.random() * 0.5,
-  };
-});
-
-const sensorConfig = [
-  { key: 'temperature', label: 'Temperature', unit: '°C', color: '#60a5fa' },
-  { key: 'moisture', label: 'Moisture', unit: '%', color: '#38bdf8' },
-  { key: 'gas', label: 'Gas Concentration', unit: 'PPM', color: '#f97316' },
-  { key: 'humidity', label: 'Humidity', unit: '%', color: '#34d399' },
-];
+import { generateAIPrediction } from '../services/api.js';
 
 function Prediction({ user, online }) {
-  const [activeSensors, setActiveSensors] = useState({
-    temperature: true,
-    moisture: true,
-    gas: true,
-    humidity: true,
-  });
-  const [predictionText, setPredictionText] = useState(['Loading AI prediction...']);
+  const [batchId, setBatchId] = useState(1);
+  const [daysWindow, setDaysWindow] = useState(21);
+  const [prediction, setPrediction] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [predictionError, setPredictionError] = useState(null);
 
-  const selectedSensors = sensorConfig.filter((sensor) => activeSensors[sensor.key]);
+  async function handleGeneratePrediction() {
+    try {
+      setLoading(true);
+      setPredictionError(null);
+      setPrediction(null);
 
-  useEffect(() => {
-    async function fetchPrediction() {
-      try {
-        setPredictionError(null);
-        const response = await getAIPredictions(selectedSensors.map((sensor) => sensor.key));
-        setPredictionText(response.insights || ['No AI insight available.']);
-      } catch (error) {
-        setPredictionError('AI analysis unavailable. Try again later.');
-        setPredictionText(['AI analysis unavailable.']);
-      }
+      const response = await generateAIPrediction(batchId, daysWindow);
+
+      setPrediction(response);
+    } catch (error) {
+      setPredictionError(error.message || 'AI prediction is currently unavailable.');
+    } finally {
+      setLoading(false);
     }
-
-    fetchPrediction();
-  }, [selectedSensors]);
-
-  const chartValues = useMemo(() => {
-    const values = sampleHistory.map((point) => ({
-      time: point.time,
-      ...selectedSensors.reduce((acc, sensor) => {
-        acc[sensor.key] = point[sensor.key];
-        return acc;
-      }, {}),
-    }));
-
-    const maxValue = Math.max(
-      ...selectedSensors.flatMap((sensor) => sampleHistory.map((item) => item[sensor.key]))
-    );
-    const minValue = Math.min(
-      ...selectedSensors.flatMap((sensor) => sampleHistory.map((item) => item[sensor.key]))
-    );
-
-    return { values, maxValue, minValue };
-  }, [selectedSensors]);
-
-  const getPath = (key, color) => {
-    const points = sampleHistory.map((item, index) => {
-      const x = (index / (sampleHistory.length - 1)) * 100;
-      const range = chartValues.maxValue - chartValues.minValue || 1;
-      const y = 100 - ((item[key] - chartValues.minValue) / range) * 100;
-      return `${index === 0 ? 'M' : 'L'} ${x}% ${y}%`;
-    });
-    return <path d={points.join(' ')} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" />;
-  };
+  }
 
   return (
     <Layout
       user={user}
       title="AI Prediction"
-      subtitle="Sensor trends, forecasting, and model insights"
+      subtitle="Compost readiness prediction based on sensor readings and actuator logs"
       online={online}
     >
       <div className="prediction-grid">
         <div className="prediction-card">
           <div className="section-header">
             <div>
-              <h2>AI Prediction</h2>
-              <p>Filter the sensor graph below and review predicted trends.</p>
+              <h2>Generate AI Prediction</h2>
+              <p>
+                The system uses moisture, gas, temperature, humidity, fan logs,
+                and water spray logs to estimate compost condition and readiness.
+              </p>
             </div>
           </div>
 
           <div className="prediction-controls">
-            {sensorConfig.map((sensor) => (
-              <button
-                key={sensor.key}
-                className={`sensor-toggle ${activeSensors[sensor.key] ? 'active' : ''}`}
-                onClick={() =>
-                  setActiveSensors((prev) => ({
-                    ...prev,
-                    [sensor.key]: !prev[sensor.key],
-                  }))
-                }
-              >
-                {activeSensors[sensor.key] ? 'Hide' : 'Show'} {sensor.label}
-              </button>
-            ))}
+            <div className="form-group">
+              <label>Compost Batch ID</label>
+              <input
+                type="number"
+                min="1"
+                value={batchId}
+                onChange={(event) => setBatchId(Number(event.target.value))}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Analysis Window, in days</label>
+              <input
+                type="number"
+                min="1"
+                value={daysWindow}
+                onChange={(event) => setDaysWindow(Number(event.target.value))}
+              />
+            </div>
+
+            <button
+              type="button"
+              className="sensor-toggle active"
+              onClick={handleGeneratePrediction}
+              disabled={loading}
+            >
+              {loading ? 'Generating AI Prediction...' : 'Generate Prediction'}
+            </button>
           </div>
+
+          {predictionError && (
+            <div className="error-box">
+              <strong>Error:</strong> {predictionError}
+            </div>
+          )}
 
           <div className="chart-frame">
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="sensor-chart">
-              <g opacity="0.2">
-                {[...Array(5)].map((_, index) => (
-                  <line
-                    key={index}
-                    x1="0"
-                    x2="100"
-                    y1={`${(index * 25)}%`}
-                    y2={`${(index * 25)}%`}
-                    stroke="rgba(148, 163, 184, 0.2)"
-                    strokeWidth="0.5"
-                  />
-                ))}
-              </g>
-              {selectedSensors.map((sensor) => getPath(sensor.key, sensor.color))}
-            </svg>
-          </div>
+            <div className="prediction-info-box">
+              <h3>Data Used for Prediction</h3>
+              <p>
+                This prediction is generated from the selected compost batch using
+                sensor readings and actuator activity stored in the database.
+              </p>
 
-          <div className="legend-list">
-            {selectedSensors.map((sensor) => (
-              <div key={sensor.key} className="legend-item">
-                <span className="legend-swatch" style={{ background: sensor.color }} />
-                <span>{sensor.label}</span>
+              <div className="legend-list">
+                <div className="legend-item">
+                  <span className="legend-swatch" />
+                  <span>Moisture Sensor</span>
+                </div>
+
+                <div className="legend-item">
+                  <span className="legend-swatch" />
+                  <span>Gas Sensor</span>
+                </div>
+
+                <div className="legend-item">
+                  <span className="legend-swatch" />
+                  <span>Temperature Sensor</span>
+                </div>
+
+                <div className="legend-item">
+                  <span className="legend-swatch" />
+                  <span>Humidity Sensor</span>
+                </div>
+
+                <div className="legend-item">
+                  <span className="legend-swatch" />
+                  <span>Fan and Water Spray Logs</span>
+                </div>
               </div>
-            ))}
+            </div>
           </div>
         </div>
 
         <div className="prediction-summary">
-          <h3>AI Insight</h3>
-          {predictionText.map((line, index) => (
-            <p key={index}>{line}</p>
-          ))}
+          <h3>AI Prediction Result</h3>
+
+          {!prediction && !loading && !predictionError && (
+            <p>
+              No prediction generated yet. Click the generate button to request
+              an AI prediction from the Spring Boot backend.
+            </p>
+          )}
+
+          {loading && (
+            <p>
+              Please wait while the system analyzes the compost batch data using
+              the AI prediction service.
+            </p>
+          )}
+
+          {prediction && (
+            <>
+              <div className="prediction-result-row">
+                <strong>Status:</strong>
+                <span>{prediction.success ? 'Success' : 'Failed'}</span>
+              </div>
+
+              <div className="prediction-result-row">
+                <strong>Predicted Condition:</strong>
+                <span>{prediction.predictedCondition || 'Not available'}</span>
+              </div>
+
+              <div className="prediction-result-row">
+                <strong>Estimated Ready Date:</strong>
+                <span>{prediction.estimatedReadyDate || 'Not available'}</span>
+              </div>
+
+              <div className="prediction-result-row">
+                <strong>Estimated Days Remaining:</strong>
+                <span>
+                  {prediction.estimatedDaysRemaining !== null &&
+                  prediction.estimatedDaysRemaining !== undefined
+                    ? `${prediction.estimatedDaysRemaining} day/s`
+                    : 'Not available'}
+                </span>
+              </div>
+
+              <div className="prediction-result-row">
+                <strong>Confidence Score:</strong>
+                <span>
+                  {prediction.confidenceScore !== null &&
+                  prediction.confidenceScore !== undefined
+                    ? prediction.confidenceScore
+                    : 'Not available'}
+                </span>
+              </div>
+
+              <hr />
+
+              <h4>Prediction Summary</h4>
+              <p>{prediction.predictionSummary || 'No prediction summary available.'}</p>
+
+              <h4>Trend Summary</h4>
+              <p>{prediction.trendSummary || 'No trend summary available.'}</p>
+
+              <h4>Recommendation</h4>
+              <p>{prediction.recommendation || 'No recommendation available.'}</p>
+            </>
+          )}
         </div>
       </div>
     </Layout>
