@@ -67,18 +67,37 @@ public class SensorSimulationService {
 
         switch (sensorId) {
             case "gas":
+
+                // If fan is active and gas is too high
                 if (fanActive && lastValue > gasMax) {
-                    // Reduce to optimal range when fan is active
-                    return gasMax - 50 + ((Math.random() - 0.5) * 20);
-                } else if (lastValue > gasMax) {
-                    // Continue decreasing when high
-                    return lastValue - (30 + Math.random() * 15) + noise;
-                } else if (lastValue < 800) {
-                    // Increase when low
-                    return lastValue + (Math.random() * 50) + noise;
-                } else {
-                    // Normal fluctuation in optimal range
-                    return lastValue + ((Math.random() - 0.5) * 100) + noise;
+
+                    // Gradually reduce gas
+                    return lastValue - (20 + Math.random() * 15);
+
+                }
+
+                // If gas is dangerously high
+                else if (lastValue > gasMax + 200) {
+
+                    // Natural decrease
+                    return lastValue - (10 + Math.random() * 10);
+
+                }
+
+                // If gas is too low
+                else if (lastValue < 850) {
+
+                    // Slowly recover upward
+                    return lastValue + (15 + Math.random() * 20);
+
+                }
+
+                // Normal fluctuation zone
+                else {
+
+                    // Random movement
+                    return lastValue + ((Math.random() - 0.5) * 80);
+
                 }
 
             case "temperature":
@@ -159,7 +178,7 @@ public class SensorSimulationService {
         switch (id) {
             case "temperature": return 20;
             case "moisture": return 30;
-            case "gas": return 700;
+            case "gas": return 850;
             case "humidity": return 35;
             default: return 0;
         }

@@ -60,7 +60,7 @@ public class SensorController {
 
                 // Determine actuator status based on current readings
                 boolean fanActive = sensorDataList.stream().anyMatch(sensor ->
-                    (sensor.getId().equals("gas") && sensor.getValue() > 1200.0) ||
+                    (sensor.getId().equals("gas") && sensor.getValue() > thresholds.getGasMax().doubleValue()) ||
                     (sensor.getId().equals("temperature") && sensor.getValue() > 35.0)
                 );
 

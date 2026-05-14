@@ -15,6 +15,8 @@ public class AuthService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    private static final String EMAIL_PATTERN = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$";
+
     public UserResponse register(RegisterRequest request) {
         if (request.getName() == null || request.getName().isBlank()) {
             throw new IllegalArgumentException("Name is required.");
@@ -24,8 +26,16 @@ public class AuthService {
             throw new IllegalArgumentException("Email is required.");
         }
 
+        if (!request.getEmail().matches(EMAIL_PATTERN)) {
+            throw new IllegalArgumentException("Email must be a valid address.");
+        }
+
         if (request.getPassword() == null || request.getPassword().isBlank()) {
             throw new IllegalArgumentException("Password is required.");
+        }
+
+        if (request.getPassword().length() < 8) {
+            throw new IllegalArgumentException("Password must be at least 8 characters.");
         }
 
         return jdbcTemplate.queryForObject(
@@ -47,8 +57,16 @@ public class AuthService {
             throw new IllegalArgumentException("Email is required.");
         }
 
+        if (!request.getEmail().matches(EMAIL_PATTERN)) {
+            throw new IllegalArgumentException("Email must be a valid address.");
+        }
+
         if (request.getPassword() == null || request.getPassword().isBlank()) {
             throw new IllegalArgumentException("Password is required.");
+        }
+
+        if (request.getPassword().length() < 8) {
+            throw new IllegalArgumentException("Password must be at least 8 characters.");
         }
 
         return jdbcTemplate.queryForObject(

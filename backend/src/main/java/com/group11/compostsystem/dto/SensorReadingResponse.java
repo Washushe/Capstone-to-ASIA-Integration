@@ -12,11 +12,15 @@ public class SensorReadingResponse {
     private BigDecimal humidityLevel;
     private String moistureStatus;
     private String gasStatus;
+    private String temperatureStatus;
+    private String humidityStatus;
     private Timestamp createdAt;
 
     public SensorReadingResponse(Long readingId, BigDecimal moistureLevel, BigDecimal gasLevel,
                                  BigDecimal temperatureC, BigDecimal humidityLevel,
-                                 String moistureStatus, String gasStatus, Timestamp createdAt) {
+                                 String moistureStatus, String gasStatus,
+                                 String temperatureStatus, String humidityStatus,
+                                 Timestamp createdAt) {
         this.readingId = readingId;
         this.moistureLevel = moistureLevel;
         this.gasLevel = gasLevel;
@@ -24,6 +28,8 @@ public class SensorReadingResponse {
         this.humidityLevel = humidityLevel;
         this.moistureStatus = moistureStatus;
         this.gasStatus = gasStatus;
+        this.temperatureStatus = temperatureStatus;
+        this.humidityStatus = humidityStatus;
         this.createdAt = createdAt;
     }
 
@@ -53,6 +59,14 @@ public class SensorReadingResponse {
 
     public String getGasStatus() {
         return gasStatus;
+    }
+
+    public String getTemperatureStatus() {
+        return temperatureStatus;
+    }
+
+    public String getHumidityStatus() {
+        return humidityStatus;
     }
 
     public Timestamp getCreatedAt() {
