@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -8,32 +8,81 @@ import Logs from './pages/Logs.jsx';
 import Settings from './pages/Settings.jsx';
 import useInactivityTimeout from './hooks/useInactivityTimeout.jsx';
 import SessionTimeoutModal from './components/SessionTimeoutModal.jsx';
+import {
+  clearStoredAuthSession,
+  getStoredAuthSession,
+  logoutUser,
+  validateSession,
+} from './services/api.js';
 
 function App() {
-  const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('compostUser');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
-
+  const [authSession, setAuthSession] = useState(() => getStoredAuthSession());
+  const [checkingSession, setCheckingSession] = useState(true);
   const [online] = useState(true);
+  const user = authSession?.user || null;
 
-  const handleLogin = (userData) => {
-    setUser(userData);
-    localStorage.setItem('compostUser', JSON.stringify(userData));
-  };
+  useEffect(() => {
+    let active = true;
+    const storedSession = getStoredAuthSession();
 
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('compostUser');
-  };
+    if (!storedSession) {
+      setCheckingSession(false);
+      return undefined;
+    }
+
+    validateSession()
+      .then((session) => {
+        if (active) {
+          setAuthSession(session);
+        }
+      })
+      .catch(() => {
+        clearStoredAuthSession();
+        if (active) {
+          setAuthSession(null);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setCheckingSession(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleLogin = useCallback((session) => {
+    setAuthSession(session);
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    await logoutUser();
+    setAuthSession(null);
+  }, []);
 
   const { showWarning, resetTimer } = useInactivityTimeout(handleLogout, !!user);
+
+  const handleStayLoggedIn = async () => {
+    try {
+      const session = await validateSession();
+      setAuthSession(session);
+      resetTimer();
+    } catch {
+      await handleLogout();
+    }
+  };
+
+  if (checkingSession) {
+    return <div className="app-loading">Checking session...</div>;
+  }
 
   return (
     <>
       <SessionTimeoutModal
         open={showWarning}
-        onStayLoggedIn={resetTimer}
+        onStayLoggedIn={handleStayLoggedIn}
         onLogout={handleLogout}
       />
 

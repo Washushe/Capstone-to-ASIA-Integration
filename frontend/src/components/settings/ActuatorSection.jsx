@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getActuatorStatus } from '../../services/api.js';
+import ActiveCompostBatchSection from './ActiveCompostBatchSection.jsx';
 
 function formatDateTime(value) {
   if (!value) return 'No activity yet';
@@ -54,35 +55,39 @@ function ActuatorSection() {
   const latestActivity = actuatorStatus?.latestActivity;
 
   return (
-    <div className="info-box settings-full-box">
-      <h4>Actuator Controls</h4>
-      <p>Runtime status comes from actuator_runtime_status and actuator_logs.</p>
+    <div className="controls-section-stack">
+      <ActiveCompostBatchSection />
 
-      <div className="actuator-status-grid">
-        <div className="actuator-card">
-          <div className="actuator-title">Fan</div>
-          <div className={`actuator-badge ${actuatorStatus?.fanActive ? 'active' : 'inactive'}`}>
-            {getStatusLabel(fanRuntime, actuatorStatus?.fanActive)}
+      <div className="info-box settings-full-box">
+        <h4>Actuator Controls</h4>
+        <p>Runtime status comes from actuator_runtime_status and actuator_logs.</p>
+
+        <div className="actuator-status-grid">
+          <div className="actuator-card">
+            <div className="actuator-title">Fan</div>
+            <div className={`actuator-badge ${actuatorStatus?.fanActive ? 'active' : 'inactive'}`}>
+              {getStatusLabel(fanRuntime, actuatorStatus?.fanActive)}
+            </div>
+            <p>Last activated: {formatDateTime(fanRuntime?.lastActivatedAt)}</p>
+            <p>Cooldown until: {formatDateTime(fanRuntime?.cooldownUntil)}</p>
           </div>
-          <p>Last activated: {formatDateTime(fanRuntime?.lastActivatedAt)}</p>
-          <p>Cooldown until: {formatDateTime(fanRuntime?.cooldownUntil)}</p>
+
+          <div className="actuator-card">
+            <div className="actuator-title">Water Spray</div>
+            <div className={`actuator-badge ${actuatorStatus?.waterPumpActive ? 'active' : 'inactive'}`}>
+              {getStatusLabel(sprayRuntime, actuatorStatus?.waterPumpActive)}
+            </div>
+            <p>Last activated: {formatDateTime(sprayRuntime?.lastActivatedAt)}</p>
+            <p>Cooldown until: {formatDateTime(sprayRuntime?.cooldownUntil)}</p>
+          </div>
         </div>
 
-        <div className="actuator-card">
-          <div className="actuator-title">Water Spray</div>
-          <div className={`actuator-badge ${actuatorStatus?.waterPumpActive ? 'active' : 'inactive'}`}>
-            {getStatusLabel(sprayRuntime, actuatorStatus?.waterPumpActive)}
+        {latestActivity && (
+          <div className="latest-activity-inline">
+            Latest activity: {latestActivity.actuatorType} from {latestActivity.triggerSource}, {latestActivity.durationSeconds}s pulse.
           </div>
-          <p>Last activated: {formatDateTime(sprayRuntime?.lastActivatedAt)}</p>
-          <p>Cooldown until: {formatDateTime(sprayRuntime?.cooldownUntil)}</p>
-        </div>
+        )}
       </div>
-
-      {latestActivity && (
-        <div className="latest-activity-inline">
-          Latest activity: {latestActivity.actuatorType} from {latestActivity.triggerSource}, {latestActivity.durationSeconds}s pulse.
-        </div>
-      )}
     </div>
   );
 }

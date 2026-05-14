@@ -15,6 +15,7 @@ function Register({ onRegister }) {
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -23,14 +24,16 @@ function Register({ onRegister }) {
 
   const validate = () => {
     const validation = {};
+    const name = profile.name.trim();
+    const email = profile.email.trim();
 
-    if (!profile.name.trim()) {
-      validation.name = 'Name is required.';
+    if (!name) {
+      validation.name = 'Full name is required.';
     }
 
-    if (!profile.email.trim()) {
+    if (!email) {
       validation.email = 'Email is required.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       validation.email = 'Enter a valid email address.';
     }
 
@@ -38,6 +41,10 @@ function Register({ onRegister }) {
       validation.password = 'Password is required.';
     } else if (profile.password.length < 8) {
       validation.password = 'Password must be at least 8 characters.';
+    }
+
+    if (profile.confirmPassword !== profile.password) {
+      validation.confirmPassword = 'Confirm password must match the password.';
     }
 
     setErrors(validation);
@@ -55,8 +62,12 @@ function Register({ onRegister }) {
     setLoading(true);
 
     try {
-      const user = await registerUser(profile);
-      onRegister(user);
+      const session = await registerUser({
+        ...profile,
+        name: profile.name.trim(),
+        email: profile.email.trim(),
+      });
+      onRegister(session);
       navigate('/dashboard');
     } catch (err) {
       setSubmitError(err.message || 'Registration failed.');
@@ -84,7 +95,7 @@ function Register({ onRegister }) {
 
           <form onSubmit={handleSubmit} className="auth-form">
           <label>
-            Name
+            Full name
             <input
               type="text"
               value={profile.name}
@@ -122,6 +133,20 @@ function Register({ onRegister }) {
             />
             {errors.password && (
               <span className="auth-field-error">{errors.password}</span>
+            )}
+          </label>
+
+          <label>
+            Confirm password
+            <input
+              type="password"
+              value={profile.confirmPassword}
+              onChange={(e) =>
+                setProfile({ ...profile, confirmPassword: e.target.value })
+              }
+            />
+            {errors.confirmPassword && (
+              <span className="auth-field-error">{errors.confirmPassword}</span>
             )}
           </label>
 

@@ -22,17 +22,14 @@ function Login({ onLogin }) {
 
   const validate = () => {
     const validation = {};
+    const email = credentials.email.trim();
 
-    if (!credentials.email.trim()) {
-      validation.email = 'Email is required.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(credentials.email)) {
-      validation.email = 'Enter a valid email address.';
+    if (!email) {
+      validation.email = 'Email or username is required.';
     }
 
     if (!credentials.password) {
       validation.password = 'Password is required.';
-    } else if (credentials.password.length < 8) {
-      validation.password = 'Password must be at least 8 characters.';
     }
 
     setErrors(validation);
@@ -50,8 +47,11 @@ function Login({ onLogin }) {
     setLoading(true);
 
     try {
-      const user = await loginUser(credentials);
-      onLogin(user);
+      const session = await loginUser({
+        email: credentials.email.trim(),
+        password: credentials.password,
+      });
+      onLogin(session);
       navigate('/dashboard');
     } catch (err) {
       setSubmitError(err.message || 'Login failed.');
@@ -79,9 +79,9 @@ function Login({ onLogin }) {
 
           <form onSubmit={handleSubmit} className="auth-form">
             <label>
-              Email
+              Email or username
               <input
-                type="email"
+                type="text"
                 value={credentials.email}
                 onChange={(e) =>
                   setCredentials({ ...credentials, email: e.target.value })

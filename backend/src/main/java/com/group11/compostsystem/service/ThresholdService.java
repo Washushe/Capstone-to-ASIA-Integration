@@ -38,7 +38,19 @@ public class ThresholdService {
         }
     }
 
-    public ThresholdSettingsResponse saveThresholdSettings(ThresholdSettingsRequest request) {
+    public ThresholdSettingsResponse saveThresholdSettings(ThresholdSettingsRequest request, Integer updatedByUserId) {
+        if (updatedByUserId == null) {
+            throw new IllegalArgumentException("A valid logged-in user is required to update threshold settings.");
+        }
+
+        if (request.getCurrentPassword() == null || request.getCurrentPassword().isBlank()) {
+            throw new IllegalArgumentException("Current password is required before saving threshold settings.");
+        }
+
+        if (!isCurrentPasswordValid(updatedByUserId, request.getCurrentPassword())) {
+            throw new IllegalArgumentException("Current password is incorrect.");
+        }
+
         ThresholdSettingsResponse current = getThresholdSettings();
 
         return jdbcTemplate.queryForObject(
@@ -61,8 +73,19 @@ public class ThresholdService {
                 valueOrDefault(request.getFanDurationSeconds(), current.getFanDurationSeconds()),
                 valueOrDefault(request.getSprayCooldownSeconds(), current.getSprayCooldownSeconds()),
                 valueOrDefault(request.getFanCooldownSeconds(), current.getFanCooldownSeconds()),
-                null
+                updatedByUserId
         );
+    }
+
+    private boolean isCurrentPasswordValid(Integer userId, String currentPassword) {
+        Integer passwordValid = jdbcTemplate.queryForObject(
+                "CALL sp_verify_user_password(?, ?)",
+                Integer.class,
+                userId,
+                currentPassword
+        );
+
+        return passwordValid != null && passwordValid == 1;
     }
 
     private ThresholdSettingsResponse defaultThresholdSettings() {

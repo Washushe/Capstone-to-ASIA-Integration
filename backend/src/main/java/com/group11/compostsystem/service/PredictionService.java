@@ -8,8 +8,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,8 +17,6 @@ import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -63,19 +59,24 @@ public class PredictionService {
             }
 
             int window = daysWindow == null || daysWindow <= 0 ? 21 : daysWindow;
+            Integer selectedBatchId = resolveBatchId(batchId);
 
-            Map<String, Object> batch = getBatch(batchId);
+            if (selectedBatchId == null) {
+                return AIPredictionResponse.failed("No active compost batch found. Create or activate a compost batch before generating AI predictions.");
+            }
+
+            Map<String, Object> batch = getBatch(selectedBatchId);
             if (batch == null) {
                 return AIPredictionResponse.failed("Compost batch not found.");
             }
 
-            Map<String, Object> latestReading = getLatestReading(batchId);
+            Map<String, Object> latestReading = getLatestReading(selectedBatchId);
             if (latestReading == null) {
                 return AIPredictionResponse.failed("No sensor readings found for this compost batch.");
             }
 
-            Map<String, Object> readingSummary = getReadingSummary(batchId, window);
-            List<Map<String, Object>> actuatorSummary = getActuatorSummary(batchId, window);
+            Map<String, Object> readingSummary = getReadingSummary(selectedBatchId, window);
+            List<Map<String, Object>> actuatorSummary = getActuatorSummary(selectedBatchId, window);
             Map<String, Object> thresholds = getLatestThresholds();
 
             String inputSnapshot = objectMapper.writeValueAsString(Map.of(
@@ -107,7 +108,7 @@ public class PredictionService {
             Integer readingId = ((Number) latestReading.get("reading_id")).intValue();
 
             Integer predictionId = savePrediction(
-                    batchId,
+                    selectedBatchId,
                     readingId,
                     predictedCondition,
                     predictionSummary,
@@ -121,14 +122,10 @@ public class PredictionService {
                     rawGeminiResponse
             );
 
-            if (estimatedReadyDate != null) {
-                updateBatchLatestReadyDate(batchId, estimatedReadyDate);
-            }
-
             return AIPredictionResponse.success(
                     "AI prediction generated successfully.",
                     predictionId,
-                    batchId,
+                    selectedBatchId,
                     predictedCondition,
                     predictionSummary,
                     estimatedReadyDate,
@@ -143,15 +140,24 @@ public class PredictionService {
         }
     }
 
+    private Integer resolveBatchId(Integer batchId) {
+        if (batchId != null && batchId > 0) {
+            return batchId;
+        }
+
+        List<Map<String, Object>> result = jdbcTemplate.queryForList("CALL sp_get_active_compost_batch()");
+
+        if (result.isEmpty()) {
+            return null;
+        }
+
+        Object activeBatchId = result.get(0).get("batch_id");
+        return activeBatchId == null ? null : ((Number) activeBatchId).intValue();
+    }
+
     private Map<String, Object> getBatch(Integer batchId) {
         List<Map<String, Object>> result = jdbcTemplate.queryForList(
-                """
-                SELECT batch_id, batch_code, batch_name, primary_material, material_description,
-                       start_date, expected_duration_days, initial_estimated_ready_date,
-                       latest_predicted_ready_date, actual_ready_date, status, bin_location, notes
-                FROM compost_batches
-                WHERE batch_id = ?
-                """,
+                "CALL sp_get_compost_batch_by_id(?)",
                 batchId
         );
 
@@ -160,15 +166,7 @@ public class PredictionService {
 
     private Map<String, Object> getLatestReading(Integer batchId) {
         List<Map<String, Object>> result = jdbcTemplate.queryForList(
-                """
-                SELECT reading_id, batch_id, moisture_level, gas_level, temperature_c,
-                       temperature_status, humidity_level, humidity_status,
-                       moisture_status, gas_status, created_at
-                FROM sensor_readings
-                WHERE batch_id = ?
-                ORDER BY created_at DESC
-                LIMIT 1
-                """,
+                "CALL sp_get_latest_sensor_reading_for_batch(?)",
                 batchId
         );
 
@@ -179,38 +177,7 @@ public class PredictionService {
         LocalDateTime start = LocalDateTime.now().minusDays(daysWindow);
 
         return jdbcTemplate.queryForMap(
-                """
-                SELECT 
-                    COUNT(*) AS total_readings,
-                    MIN(created_at) AS analysis_window_start,
-                    MAX(created_at) AS analysis_window_end,
-
-                    AVG(moisture_level) AS avg_moisture,
-                    MIN(moisture_level) AS min_moisture,
-                    MAX(moisture_level) AS max_moisture,
-                    SUM(CASE WHEN moisture_status = 'LOW' THEN 1 ELSE 0 END) AS low_moisture_count,
-                    SUM(CASE WHEN moisture_status = 'HIGH' THEN 1 ELSE 0 END) AS high_moisture_count,
-
-                    AVG(gas_level) AS avg_gas,
-                    MIN(gas_level) AS min_gas,
-                    MAX(gas_level) AS max_gas,
-                    SUM(CASE WHEN gas_status = 'HIGH' THEN 1 ELSE 0 END) AS high_gas_count,
-
-                    AVG(temperature_c) AS avg_temperature,
-                    MIN(temperature_c) AS min_temperature,
-                    MAX(temperature_c) AS max_temperature,
-                    SUM(CASE WHEN temperature_status = 'LOW' THEN 1 ELSE 0 END) AS low_temperature_count,
-                    SUM(CASE WHEN temperature_status = 'HIGH' THEN 1 ELSE 0 END) AS high_temperature_count,
-
-                    AVG(humidity_level) AS avg_humidity,
-                    MIN(humidity_level) AS min_humidity,
-                    MAX(humidity_level) AS max_humidity,
-                    SUM(CASE WHEN humidity_status = 'LOW' THEN 1 ELSE 0 END) AS low_humidity_count,
-                    SUM(CASE WHEN humidity_status = 'HIGH' THEN 1 ELSE 0 END) AS high_humidity_count
-                FROM sensor_readings
-                WHERE batch_id = ?
-                  AND created_at >= ?
-                """,
+                "CALL sp_get_sensor_reading_summary(?, ?)",
                 batchId,
                 Timestamp.valueOf(start)
         );
@@ -220,14 +187,7 @@ public class PredictionService {
         LocalDateTime start = LocalDateTime.now().minusDays(daysWindow);
 
         return jdbcTemplate.queryForList(
-                """
-                SELECT actuator_type, status, trigger_source, COUNT(*) AS total_events
-                FROM actuator_logs
-                WHERE batch_id = ?
-                  AND created_at >= ?
-                GROUP BY actuator_type, status, trigger_source
-                ORDER BY actuator_type, status, trigger_source
-                """,
+                "CALL sp_get_actuator_summary(?, ?)",
                 batchId,
                 Timestamp.valueOf(start)
         );
@@ -235,20 +195,7 @@ public class PredictionService {
 
     private Map<String, Object> getLatestThresholds() {
         List<Map<String, Object>> result = jdbcTemplate.queryForList(
-                """
-                SELECT
-                    moisture_min,
-                    gas_max,
-                    reading_interval_seconds,
-                    spray_duration_seconds,
-                    fan_duration_seconds,
-                    spray_cooldown_seconds,
-                    fan_cooldown_seconds,
-                    updated_at
-                FROM threshold_settings
-                ORDER BY updated_at DESC
-                LIMIT 1
-                """
+                "CALL sp_get_threshold_settings()"
         );
 
         return result.isEmpty() ? Map.of(
@@ -386,75 +333,23 @@ public class PredictionService {
         Timestamp windowStart = toTimestamp(readingSummary.get("analysis_window_start"));
         Timestamp windowEnd = toTimestamp(readingSummary.get("analysis_window_end"));
 
-        String sql = """
-            INSERT INTO ai_predictions (
-                batch_id,
-                prediction_type,
-                reading_id,
-                predicted_condition,
-                prediction_summary,
-                estimated_ready_date,
-                estimated_days_remaining,
+        return jdbcTemplate.queryForObject(
+                "CALL sp_save_ai_prediction(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (rs, rowNum) -> rs.getInt("prediction_id"),
+                batchId,
+                readingId,
+                predictedCondition,
+                predictionSummary,
+                estimatedReadyDate == null ? null : Date.valueOf(estimatedReadyDate),
+                estimatedDaysRemaining,
                 recommendation,
-                trend_summary,
-                analysis_window_start,
-                analysis_window_end,
-                confidence_score,
-                model_provider,
-                model_name,
-                input_snapshot,
-                raw_ai_response
-            )
-            VALUES (?, 'READINESS_ESTIMATE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Gemini', ?, ?, ?)
-            """;
-
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-
-        jdbcTemplate.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-
-            ps.setObject(1, batchId);
-            ps.setObject(2, readingId);
-            ps.setString(3, predictedCondition);
-            ps.setString(4, predictionSummary);
-
-            if (estimatedReadyDate != null) {
-                ps.setDate(5, Date.valueOf(estimatedReadyDate));
-            } else {
-                ps.setNull(5, java.sql.Types.DATE);
-            }
-
-            if (estimatedDaysRemaining != null) {
-                ps.setInt(6, estimatedDaysRemaining);
-            } else {
-                ps.setNull(6, java.sql.Types.INTEGER);
-            }
-
-            ps.setString(7, recommendation);
-            ps.setString(8, trendSummary);
-            ps.setTimestamp(9, windowStart);
-            ps.setTimestamp(10, windowEnd);
-            ps.setBigDecimal(11, confidenceScore);
-            ps.setString(12, geminiModel);
-            ps.setString(13, inputSnapshot);
-            ps.setString(14, rawGeminiResponse);
-
-            return ps;
-        }, keyHolder);
-
-        Number key = keyHolder.getKey();
-        return key == null ? null : key.intValue();
-    }
-
-    private void updateBatchLatestReadyDate(Integer batchId, LocalDate estimatedReadyDate) {
-        jdbcTemplate.update(
-                """
-                UPDATE compost_batches
-                SET latest_predicted_ready_date = ?
-                WHERE batch_id = ?
-                """,
-                Date.valueOf(estimatedReadyDate),
-                batchId
+                trendSummary,
+                windowStart,
+                windowEnd,
+                confidenceScore,
+                geminiModel,
+                inputSnapshot,
+                rawGeminiResponse
         );
     }
 

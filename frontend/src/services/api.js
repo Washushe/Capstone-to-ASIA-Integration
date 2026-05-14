@@ -1,9 +1,52 @@
 const API_BASE_URL = 'http://localhost:8080/api';
+const AUTH_SESSION_KEY = 'compostAuthSession';
+
+export function getStoredAuthSession() {
+  try {
+    const savedSession = localStorage.getItem(AUTH_SESSION_KEY);
+    const session = savedSession ? JSON.parse(savedSession) : null;
+
+    if (!session?.sessionToken || !session?.user) {
+      return null;
+    }
+
+    if (session.expiresAt && new Date(session.expiresAt) <= new Date()) {
+      clearStoredAuthSession();
+      return null;
+    }
+
+    return session;
+  } catch {
+    clearStoredAuthSession();
+    return null;
+  }
+}
+
+export function storeAuthSession(data) {
+  const session = {
+    user: data.user,
+    sessionToken: data.sessionToken,
+    expiresAt: data.expiresAt,
+  };
+
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+  localStorage.removeItem('compostUser');
+  return session;
+}
+
+export function clearStoredAuthSession() {
+  localStorage.removeItem(AUTH_SESSION_KEY);
+  localStorage.removeItem('compostUser');
+}
 
 async function request(path, options = {}) {
+  const storedSession = getStoredAuthSession();
+  const token = storedSession?.sessionToken;
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
     ...options,
@@ -13,10 +56,15 @@ async function request(path, options = {}) {
     return null;
   }
 
-  const data = await response.json();
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
 
-  if (!response.ok || data.success === false) {
-    throw new Error(data.message || 'Request failed.');
+  if (!response.ok || data?.success === false) {
+    if (response.status === 401) {
+      clearStoredAuthSession();
+    }
+
+    throw new Error(data?.message || 'Request failed.');
   }
 
   return data;
@@ -29,19 +77,45 @@ async function request(path, options = {}) {
 export async function loginUser(credentials) {
   const data = await request('/auth/login', {
     method: 'POST',
-    body: JSON.stringify(credentials),
+    body: JSON.stringify({
+      email: credentials.email.trim(),
+      password: credentials.password,
+    }),
   });
 
-  return data.user;
+  return storeAuthSession(data);
 }
 
 export async function registerUser(profile) {
   const data = await request('/auth/register', {
     method: 'POST',
-    body: JSON.stringify(profile),
+    body: JSON.stringify({
+      name: profile.name.trim(),
+      email: profile.email.trim(),
+      password: profile.password,
+      confirmPassword: profile.confirmPassword,
+    }),
   });
 
-  return data.user;
+  return storeAuthSession(data);
+}
+
+export async function validateSession() {
+  const data = await request('/auth/session', {
+    method: 'GET',
+  });
+
+  return storeAuthSession(data);
+}
+
+export async function logoutUser() {
+  try {
+    await request('/auth/logout', {
+      method: 'POST',
+    });
+  } finally {
+    clearStoredAuthSession();
+  }
 }
 
 // ==========================
@@ -137,13 +211,62 @@ export async function getActuatorLogs() {
 }
 
 // ==========================
+// COMPOST BATCHES
+// ==========================
+
+export async function getActiveCompostBatch() {
+  return request('/compost-batches/active', {
+    method: 'GET',
+  });
+}
+
+export async function getCompostBatches() {
+  return request('/compost-batches', {
+    method: 'GET',
+  });
+}
+
+export async function createCompostBatch(batch) {
+  return request('/compost-batches', {
+    method: 'POST',
+    body: JSON.stringify(batch),
+  });
+}
+
+export async function updateCompostBatch(batchId, batch) {
+  return request(`/compost-batches/${batchId}`, {
+    method: 'PUT',
+    body: JSON.stringify(batch),
+  });
+}
+
+export async function setActiveCompostBatch(batchId) {
+  return request(`/compost-batches/${batchId}/activate`, {
+    method: 'POST',
+  });
+}
+
+export async function updateCompostBatchStatus(batchId, status) {
+  return request(`/compost-batches/${batchId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+// ==========================
 // AI PREDICTION
 // ==========================
 
-export async function generateAIPrediction(batchId = 1, daysWindow = 21) {
-  return request(`/predictions/generate/${batchId}`, {
+export async function generateAIPrediction(batchId = null, daysWindow = 21) {
+  const selectedBatchId = batchId ? Number(batchId) : null;
+  const path = selectedBatchId
+    ? `/predictions/generate/${selectedBatchId}`
+    : '/predictions/generate';
+
+  return request(path, {
     method: 'POST',
     body: JSON.stringify({
+      ...(selectedBatchId ? { batchId: selectedBatchId } : {}),
       daysWindow,
     }),
   });

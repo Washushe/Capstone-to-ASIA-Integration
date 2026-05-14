@@ -16,6 +16,10 @@ function ThresholdSection() {
   const [thresholds, setThresholds] = useState(defaultThresholds);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState('');
+  const [passwordPromptOpen, setPasswordPromptOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function loadThresholds() {
@@ -43,9 +47,32 @@ function ThresholdSection() {
     }));
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
+    setStatusMessage('');
+    setStatusType('');
+    setCurrentPassword('');
+    setPasswordError('');
+    setPasswordPromptOpen(true);
+  };
+
+  const confirmSave = async (event) => {
+    event.preventDefault();
+    setStatusMessage('');
+    setStatusType('');
+    setPasswordError('');
+
+    if (!currentPassword) {
+      setPasswordError('Enter your current password to save threshold settings.');
+      return;
+    }
+
+    setSaving(true);
+
     try {
-      const saved = await saveThresholdSettings(thresholds);
+      const saved = await saveThresholdSettings({
+        ...thresholds,
+        currentPassword,
+      });
       const nextThresholds = {
         ...defaultThresholds,
         ...saved,
@@ -55,10 +82,12 @@ function ThresholdSection() {
       saveLocalThresholds(nextThresholds);
       setStatusMessage('Sensor and actuator settings have been saved.');
       setStatusType('success');
-    } catch {
-      saveLocalThresholds(thresholds);
-      setStatusMessage('Unable to save to backend. Values are saved locally.');
-      setStatusType('error');
+      setCurrentPassword('');
+      setPasswordPromptOpen(false);
+    } catch (error) {
+      setPasswordError(error.message || 'Unable to save threshold settings.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -86,16 +115,6 @@ function ThresholdSection() {
               value={thresholds.gasMax}
               onChange={(e) => handleChange('gasMax', e.target.value)}
               placeholder="1200"
-            />
-          </label>
-
-          <label>
-            Reading Interval (seconds)
-            <input
-              type="number"
-              value={thresholds.readingIntervalSeconds}
-              onChange={(e) => handleChange('readingIntervalSeconds', e.target.value)}
-              placeholder="30"
             />
           </label>
 
@@ -138,10 +157,20 @@ function ThresholdSection() {
               placeholder="30"
             />
           </label>
+
+          <label className="threshold-reading-interval">
+            Reading Interval (seconds)
+            <input
+              type="number"
+              value={thresholds.readingIntervalSeconds}
+              onChange={(e) => handleChange('readingIntervalSeconds', e.target.value)}
+              placeholder="30"
+            />
+          </label>
         </div>
 
-        <button className="save-button" onClick={handleSave}>
-          Save Changes
+        <button className="save-button" onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving...' : 'Save Changes'}
         </button>
         {statusMessage && (
           <p className={`form-message ${statusType}`}>
@@ -149,6 +178,44 @@ function ThresholdSection() {
           </p>
         )}
       </div>
+
+      {passwordPromptOpen && (
+        <div className="threshold-password-overlay" role="dialog" aria-modal="true" aria-labelledby="threshold-password-title">
+          <form className="threshold-password-card" onSubmit={confirmSave}>
+            <h3 id="threshold-password-title">Confirm Threshold Change</h3>
+            <p>Enter your current account password before saving preset threshold values.</p>
+            {passwordError && <p className="form-message error">{passwordError}</p>}
+
+            <label>
+              Current password
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                autoFocus
+              />
+            </label>
+
+            <div className="threshold-password-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setPasswordPromptOpen(false);
+                  setCurrentPassword('');
+                  setPasswordError('');
+                }}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="primary-button" disabled={saving}>
+                {saving ? 'Verifying...' : 'Confirm Save'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

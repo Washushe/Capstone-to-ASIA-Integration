@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout.jsx';
-import { generateAIPrediction, getSensorReadings } from '../services/api.js';
+import {
+  generateAIPrediction,
+  getActiveCompostBatch,
+  getSensorReadings,
+} from '../services/api.js';
 
 const SENSOR_SERIES = [
   { id: 'moisture', label: 'Moisture', field: 'moistureLevel', color: '#60A5FA', unit: '%' },
@@ -20,7 +24,8 @@ function formatValue(value) {
 }
 
 function Prediction({ user, online }) {
-  const [batchId, setBatchId] = useState(1);
+  const [batchId, setBatchId] = useState('');
+  const [activeBatch, setActiveBatch] = useState(null);
   const [daysWindow, setDaysWindow] = useState(21);
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -39,6 +44,10 @@ function Prediction({ user, online }) {
   useEffect(() => {
     async function loadSensorHistory() {
       try {
+        const active = await getActiveCompostBatch().catch(() => null);
+        setActiveBatch(active);
+        setBatchId(active?.batchId || '');
+
         const readings = await getSensorReadings();
         const history = Array.isArray(readings) ? readings.slice(0, 60).reverse() : [];
         setSensorHistory(history);
@@ -113,8 +122,6 @@ function Prediction({ user, online }) {
     };
   }, [sensorHistory, visibleSensors]);
 
-  const latestReading = sensorHistory.length > 0 ? sensorHistory[sensorHistory.length - 1] : null;
-
   async function handleGeneratePrediction() {
     try {
       setLoading(true);
@@ -122,7 +129,7 @@ function Prediction({ user, online }) {
       setPrediction(null);
       setPredictionModalOpen(true);
 
-      const response = await generateAIPrediction(batchId, daysWindow);
+      const response = await generateAIPrediction(batchId || null, daysWindow);
 
       setPrediction(response);
     } catch (error) {
@@ -145,8 +152,9 @@ function Prediction({ user, online }) {
             <div>
               <h2>Generate AI Prediction</h2>
               <p>
-                The system uses moisture, gas, temperature, humidity, fan logs,
-                and water spray logs to estimate compost condition and readiness.
+                {activeBatch
+                  ? `Active batch: ${activeBatch.batchCode} - ${activeBatch.batchName}`
+                  : 'Select a batch ID or activate a compost batch in Settings.'}
               </p>
             </div>
           </div>
@@ -158,7 +166,7 @@ function Prediction({ user, online }) {
                 type="number"
                 min="1"
                 value={batchId}
-                onChange={(event) => setBatchId(Number(event.target.value))}
+                onChange={(event) => setBatchId(event.target.value)}
               />
             </div>
 
@@ -299,35 +307,6 @@ function Prediction({ user, online }) {
                   </div>
                 </div>
               )}
-            </div>
-
-            <div className="prediction-chart-footer">
-              <div className="reading-summary-panel">
-                <h4>Latest Data Snapshot</h4>
-                {latestReading ? (
-                  <div className="reading-row">
-                    {SENSOR_SERIES.map((series) => (
-                      <div key={series.id}>
-                        <strong>{series.label}:</strong>
-                        <p>
-                          {formatValue(latestReading[series.field])} {series.unit}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No readings are available for this batch yet.</p>
-                )}
-              </div>
-
-              <div className="chart-metrics-panel">
-                <h4>Chart Metrics</h4>
-                <ul>
-                  <li>{sensorHistory.length} stored readings</li>
-                  <li>{visibleSensors.length} active sensor series</li>
-                  <li>{historyLoading ? 'Loading history...' : `${chartData.history.length} trend points`}</li>
-                </ul>
-              </div>
             </div>
           </div>
         </div>

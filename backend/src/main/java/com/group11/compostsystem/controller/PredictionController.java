@@ -22,10 +22,10 @@ public class PredictionController {
     }
 
     @PostMapping("/generate")
-    public AIPredictionResponse generatePrediction(@RequestBody AIPredictionRequest request) {
+    public AIPredictionResponse generatePrediction(@RequestBody(required = false) AIPredictionRequest request) {
         return predictionService.generatePrediction(
-                request.getBatchId(),
-                request.getDaysWindow()
+                request == null ? null : request.getBatchId(),
+                request == null ? 21 : request.getDaysWindow()
         );
     }
 

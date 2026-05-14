@@ -11,6 +11,7 @@ public class ThresholdSettingsRequest {
     private Integer fanDurationSeconds;
     private Integer sprayCooldownSeconds;
     private Integer fanCooldownSeconds;
+    private String currentPassword;
 
     public BigDecimal getMoistureMin() {
         return moistureMin;
@@ -66,5 +67,13 @@ public class ThresholdSettingsRequest {
 
     public void setFanCooldownSeconds(Integer fanCooldownSeconds) {
         this.fanCooldownSeconds = fanCooldownSeconds;
+    }
+
+    public String getCurrentPassword() {
+        return currentPassword;
+    }
+
+    public void setCurrentPassword(String currentPassword) {
+        this.currentPassword = currentPassword;
     }
 }
