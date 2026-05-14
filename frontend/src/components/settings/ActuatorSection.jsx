@@ -1,71 +1,37 @@
-﻿import { useState, useEffect } from 'react';
-import {
-  getLatestSensorReading,
-  getSensorReadings,
-  getThresholdSettings,
-} from '../../services/api.js';
+import { useState, useEffect } from 'react';
+import { getActuatorStatus } from '../../services/api.js';
 
-const GAS_HIGH_THRESHOLD = 1200;
-const defaultThresholds = { moistureMin: 50, gasMax: GAS_HIGH_THRESHOLD };
+function formatDateTime(value) {
+  if (!value) return 'No activity yet';
+  return new Date(value).toLocaleString();
+}
 
-function getActuatorEvent(reading, thresholds) {
-  const gasHigh = reading.gasStatus === 'HIGH';
-  const moistureLow = reading.moistureStatus === 'LOW';
-  const moistureHigh = reading.moistureStatus === 'HIGH';
-  const temperatureHigh = reading.temperatureC > 35;
+function getRuntime(status, actuatorType) {
+  return status?.actuators?.find((actuator) => actuator.actuatorType === actuatorType);
+}
 
-  if (gasHigh || temperatureHigh) {
-    return {
-      event: 'Fan activated for 5 seconds',
-      cause: 'Gas exceeded threshold limit',
-      status: 'HIGH',
-    };
+function getStatusLabel(runtime, active) {
+  if (active) return 'Running';
+
+  const cooldownUntil = runtime?.cooldownUntil ? new Date(runtime.cooldownUntil) : null;
+  if (cooldownUntil && cooldownUntil > new Date()) {
+    return 'Cooldown';
   }
 
-  if (moistureLow) {
-    return {
-      event: 'Water pump activated for 5 seconds',
-      cause: 'Moisture dropped below threshold limit',
-      status: 'LOW',
-    };
-  }
-
-  if (moistureHigh) {
-    return {
-      event: 'Moisture release system activated for 5 seconds',
-      cause: 'Moisture exceeded safe range',
-      status: 'HIGH',
-    };
-  }
-
-  return {
-    event: 'No actuator event triggered',
-    cause: 'All sensor levels are within normal thresholds',
-    status: 'NORMAL',
-  };
+  return 'Idle';
 }
 
 function ActuatorSection() {
-  const [latestReading, setLatestReading] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [thresholds, setThresholds] = useState(defaultThresholds);
+  const [actuatorStatus, setActuatorStatus] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [settings, allReadings] = await Promise.all([
-          getThresholdSettings(),
-          getSensorReadings(),
-        ]);
-        setThresholds({
-          moistureMin: settings.moistureMin ?? 50,
-          gasMax: settings.gasMax ?? GAS_HIGH_THRESHOLD,
-        });
-        setHistory(allReadings);
-        setLatestReading(allReadings?.[0] ?? null);
+        const status = await getActuatorStatus();
+        setActuatorStatus(status);
       } catch {
-        setThresholds(defaultThresholds);
+        setActuatorStatus(null);
       } finally {
         setLoading(false);
       }
@@ -83,40 +49,40 @@ function ActuatorSection() {
     );
   }
 
-  if (!latestReading) {
-    return (
-      <div className="info-box settings-full-box">
-        <h4>Actuator Controls</h4>
-        <p>No sensor reading is available yet to calculate actuator behavior.</p>
-      </div>
-    );
-  }
-
-  const { moistureLevel, gasLevel, temperatureC } = latestReading;
-  const fanActive = gasLevel > thresholds.gasMax || temperatureC > 35;
-  const waterActive = moistureLevel < thresholds.moistureMin;
+  const fanRuntime = getRuntime(actuatorStatus, 'FAN');
+  const sprayRuntime = getRuntime(actuatorStatus, 'WATER_SPRAY');
+  const latestActivity = actuatorStatus?.latestActivity;
 
   return (
     <div className="info-box settings-full-box">
       <h4>Actuator Controls</h4>
-      <p>Actuator status is simulated from the latest recorded sensor reading and current threshold settings.</p>
+      <p>Runtime status comes from actuator_runtime_status and actuator_logs.</p>
 
       <div className="actuator-status-grid">
         <div className="actuator-card">
           <div className="actuator-title">Fan</div>
-          <div className={`actuator-badge ${fanActive ? 'active' : 'inactive'}`}>
-            {fanActive ? 'Running' : 'Idle'}
+          <div className={`actuator-badge ${actuatorStatus?.fanActive ? 'active' : 'inactive'}`}>
+            {getStatusLabel(fanRuntime, actuatorStatus?.fanActive)}
           </div>
-          <p>{fanActive ? 'Fan is running to reduce high gas/temperature levels.' : 'Fan is not currently required.'}</p>
+          <p>Last activated: {formatDateTime(fanRuntime?.lastActivatedAt)}</p>
+          <p>Cooldown until: {formatDateTime(fanRuntime?.cooldownUntil)}</p>
         </div>
+
         <div className="actuator-card">
-          <div className="actuator-title">Water Pump</div>
-          <div className={`actuator-badge ${waterActive ? 'active' : 'inactive'}`}>
-            {waterActive ? 'Running' : 'Idle'}
+          <div className="actuator-title">Water Spray</div>
+          <div className={`actuator-badge ${actuatorStatus?.waterPumpActive ? 'active' : 'inactive'}`}>
+            {getStatusLabel(sprayRuntime, actuatorStatus?.waterPumpActive)}
           </div>
-          <p>{waterActive ? 'Water pump is active due to moisture below threshold.' : 'Moisture is within the normal range.'}</p>
+          <p>Last activated: {formatDateTime(sprayRuntime?.lastActivatedAt)}</p>
+          <p>Cooldown until: {formatDateTime(sprayRuntime?.cooldownUntil)}</p>
         </div>
       </div>
+
+      {latestActivity && (
+        <div className="latest-activity-inline">
+          Latest activity: {latestActivity.actuatorType} from {latestActivity.triggerSource}, {latestActivity.durationSeconds}s pulse.
+        </div>
+      )}
     </div>
   );
 }

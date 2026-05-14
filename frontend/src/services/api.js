@@ -114,12 +114,24 @@ export async function simulateNextSensorReading(lastReading, thresholds) {
   });
 }
 
+export async function runSensorSimulationOnce() {
+  return request('/sensor-simulation/run-once', {
+    method: 'POST',
+  });
+}
+
 // ==========================
 // ACTUATOR STATUS
 // ==========================
 
 export async function getActuatorStatus() {
   return request('/actuator-status', {
+    method: 'GET',
+  });
+}
+
+export async function getActuatorLogs() {
+  return request('/actuator-logs', {
     method: 'GET',
   });
 }

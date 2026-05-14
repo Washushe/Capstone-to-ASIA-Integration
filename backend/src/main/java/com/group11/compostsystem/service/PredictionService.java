@@ -236,7 +236,15 @@ public class PredictionService {
     private Map<String, Object> getLatestThresholds() {
         List<Map<String, Object>> result = jdbcTemplate.queryForList(
                 """
-                SELECT moisture_min, gas_max, updated_at
+                SELECT
+                    moisture_min,
+                    gas_max,
+                    reading_interval_seconds,
+                    spray_duration_seconds,
+                    fan_duration_seconds,
+                    spray_cooldown_seconds,
+                    fan_cooldown_seconds,
+                    updated_at
                 FROM threshold_settings
                 ORDER BY updated_at DESC
                 LIMIT 1
@@ -244,8 +252,13 @@ public class PredictionService {
         );
 
         return result.isEmpty() ? Map.of(
-                "moisture_min", 40,
-                "gas_max", 40,
+                "moisture_min", 50,
+                "gas_max", 1200,
+                "reading_interval_seconds", 30,
+                "spray_duration_seconds", 5,
+                "fan_duration_seconds", 5,
+                "spray_cooldown_seconds", 30,
+                "fan_cooldown_seconds", 30,
                 "note", "Default fallback thresholds were used."
         ) : result.get(0);
     }

@@ -4,8 +4,8 @@ import { generateAIPrediction, getSensorReadings } from '../services/api.js';
 
 const SENSOR_SERIES = [
   { id: 'moisture', label: 'Moisture', field: 'moistureLevel', color: '#60A5FA', unit: '%' },
-  { id: 'gas', label: 'Gas', field: 'gasLevel', color: '#f97316', unit: 'PPM' },
-  { id: 'temperature', label: 'Temperature', field: 'temperatureC', color: '#fb7185', unit: '°C' },
+  { id: 'gas', label: 'Gas', field: 'gasLevel', color: '#f97316', unit: 'index' },
+  { id: 'temperature', label: 'Temperature', field: 'temperatureC', color: '#fb7185', unit: '\u00B0C' },
   { id: 'humidity', label: 'Humidity', field: 'humidityLevel', color: '#34d399', unit: '%' },
 ];
 
@@ -25,6 +25,7 @@ function Prediction({ user, online }) {
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [predictionError, setPredictionError] = useState(null);
+  const [predictionModalOpen, setPredictionModalOpen] = useState(false);
   const [sensorHistory, setSensorHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [activeSeries, setActiveSeries] = useState({
@@ -39,7 +40,7 @@ function Prediction({ user, online }) {
     async function loadSensorHistory() {
       try {
         const readings = await getSensorReadings();
-        const history = Array.isArray(readings) ? readings.slice(-60).reverse() : [];
+        const history = Array.isArray(readings) ? readings.slice(0, 60).reverse() : [];
         setSensorHistory(history);
       } catch {
         setSensorHistory([]);
@@ -72,9 +73,9 @@ function Prediction({ user, online }) {
     const chartMin = Math.max(0, minValue - range * 0.1);
     const chartMax = maxValue + range * 0.1;
 
-    const width = 860;
-    const height = 300;
-    const padding = 38;
+    const width = 1120;
+    const height = 380;
+    const padding = 46;
     const plotWidth = width - padding * 2;
     const plotHeight = height - padding * 2;
     const xStep = history.length > 1 ? plotWidth / (history.length - 1) : plotWidth;
@@ -119,6 +120,7 @@ function Prediction({ user, online }) {
       setLoading(true);
       setPredictionError(null);
       setPrediction(null);
+      setPredictionModalOpen(true);
 
       const response = await generateAIPrediction(batchId, daysWindow);
 
@@ -180,10 +182,14 @@ function Prediction({ user, online }) {
             </button>
           </div>
 
-          {predictionError && (
-            <div className="error-box">
-              <strong>Error:</strong> {predictionError}
-            </div>
+          {(prediction || predictionError) && !loading && (
+            <button
+              type="button"
+              className="secondary-button prediction-open-button"
+              onClick={() => setPredictionModalOpen(true)}
+            >
+              View Prediction Result
+            </button>
           )}
 
           <div className="chart-frame">
@@ -326,74 +332,95 @@ function Prediction({ user, online }) {
           </div>
         </div>
 
-        <div className="prediction-summary">
-          <h3>AI Prediction Result</h3>
-
-          {!prediction && !loading && !predictionError && (
-            <p>
-              No prediction generated yet. Click the generate button to request
-              an AI prediction from the Spring Boot backend.
-            </p>
-          )}
-
-          {loading && (
-            <p>
-              Please wait while the system analyzes the compost batch data using
-              the AI prediction service.
-            </p>
-          )}
-
-          {prediction && (
-            <>
-              <div className="prediction-result-row">
-                <strong>Status:</strong>
-                <span>{prediction.success ? 'Success' : 'Failed'}</span>
-              </div>
-
-              <div className="prediction-result-row">
-                <strong>Predicted Condition:</strong>
-                <span>{prediction.predictedCondition || 'Not available'}</span>
-              </div>
-
-              <div className="prediction-result-row">
-                <strong>Estimated Ready Date:</strong>
-                <span>{prediction.estimatedReadyDate || 'Not available'}</span>
-              </div>
-
-              <div className="prediction-result-row">
-                <strong>Estimated Days Remaining:</strong>
-                <span>
-                  {prediction.estimatedDaysRemaining !== null &&
-                  prediction.estimatedDaysRemaining !== undefined
-                    ? `${prediction.estimatedDaysRemaining} day/s`
-                    : 'Not available'}
-                </span>
-              </div>
-
-              <div className="prediction-result-row">
-                <strong>Confidence Score:</strong>
-                <span>
-                  {prediction.confidenceScore !== null &&
-                  prediction.confidenceScore !== undefined
-                    ? prediction.confidenceScore
-                    : 'Not available'}
-                </span>
-              </div>
-
-              <hr />
-
-              <h4>Prediction Summary</h4>
-              <p>{prediction.predictionSummary || 'No prediction summary available.'}</p>
-
-              <h4>Trend Summary</h4>
-              <p>{prediction.trendSummary || 'No trend summary available.'}</p>
-
-              <h4>Recommendation</h4>
-              <p>{prediction.recommendation || 'No recommendation available.'}</p>
-            </>
-          )}
-        </div>
       </div>
+
+      {predictionModalOpen && (
+        <div className="prediction-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="prediction-modal-title">
+          <div className="prediction-modal">
+            <div className="prediction-modal-header">
+              <h3 id="prediction-modal-title">AI Prediction Result</h3>
+              <button
+                type="button"
+                className="prediction-modal-close"
+                onClick={() => setPredictionModalOpen(false)}
+                aria-label="Close prediction result"
+              >
+                x
+              </button>
+            </div>
+
+            {!prediction && !loading && !predictionError && (
+              <p>
+                No prediction generated yet. Click the generate button to request
+                an AI prediction from the Spring Boot backend.
+              </p>
+            )}
+
+            {loading && (
+              <p>
+                Please wait while the system analyzes the compost batch data using
+                the AI prediction service.
+              </p>
+            )}
+
+            {predictionError && (
+              <div className="error-box">
+                <strong>Error:</strong> {predictionError}
+              </div>
+            )}
+
+            {prediction && (
+              <>
+                <div className="prediction-result-row">
+                  <strong>Status:</strong>
+                  <span>{prediction.success ? 'Success' : 'Failed'}</span>
+                </div>
+
+                <div className="prediction-result-row">
+                  <strong>Predicted Condition:</strong>
+                  <span>{prediction.predictedCondition || 'Not available'}</span>
+                </div>
+
+                <div className="prediction-result-row">
+                  <strong>Estimated Ready Date:</strong>
+                  <span>{prediction.estimatedReadyDate || 'Not available'}</span>
+                </div>
+
+                <div className="prediction-result-row">
+                  <strong>Estimated Days Remaining:</strong>
+                  <span>
+                    {prediction.estimatedDaysRemaining !== null &&
+                    prediction.estimatedDaysRemaining !== undefined
+                      ? `${prediction.estimatedDaysRemaining} day/s`
+                      : 'Not available'}
+                  </span>
+                </div>
+
+                <div className="prediction-result-row">
+                  <strong>Confidence Score:</strong>
+                  <span>
+                    {prediction.confidenceScore !== null &&
+                    prediction.confidenceScore !== undefined
+                      ? prediction.confidenceScore
+                      : 'Not available'}
+                  </span>
+                </div>
+
+                <hr />
+
+                <h4>Prediction Summary</h4>
+                <p>{prediction.predictionSummary || 'No prediction summary available.'}</p>
+
+                <h4>Trend Summary</h4>
+                <p>{prediction.trendSummary || 'No trend summary available.'}</p>
+
+                <h4>Recommendation</h4>
+                <p>{prediction.recommendation || 'No recommendation available.'}</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

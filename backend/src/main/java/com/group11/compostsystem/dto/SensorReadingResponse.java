@@ -2,10 +2,13 @@ package com.group11.compostsystem.dto;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SensorReadingResponse {
 
     private Long readingId;
+    private Integer batchId;
     private BigDecimal moistureLevel;
     private BigDecimal gasLevel;
     private BigDecimal temperatureC;
@@ -15,13 +18,15 @@ public class SensorReadingResponse {
     private String temperatureStatus;
     private String humidityStatus;
     private Timestamp createdAt;
+    private List<ActuatorActionResponse> actuatorActions = new ArrayList<>();
 
-    public SensorReadingResponse(Long readingId, BigDecimal moistureLevel, BigDecimal gasLevel,
+    public SensorReadingResponse(Long readingId, Integer batchId, BigDecimal moistureLevel, BigDecimal gasLevel,
                                  BigDecimal temperatureC, BigDecimal humidityLevel,
                                  String moistureStatus, String gasStatus,
                                  String temperatureStatus, String humidityStatus,
                                  Timestamp createdAt) {
         this.readingId = readingId;
+        this.batchId = batchId;
         this.moistureLevel = moistureLevel;
         this.gasLevel = gasLevel;
         this.temperatureC = temperatureC;
@@ -35,6 +40,10 @@ public class SensorReadingResponse {
 
     public Long getReadingId() {
         return readingId;
+    }
+
+    public Integer getBatchId() {
+        return batchId;
     }
 
     public BigDecimal getMoistureLevel() {
@@ -71,5 +80,13 @@ public class SensorReadingResponse {
 
     public Timestamp getCreatedAt() {
         return createdAt;
+    }
+
+    public List<ActuatorActionResponse> getActuatorActions() {
+        return actuatorActions;
+    }
+
+    public void setActuatorActions(List<ActuatorActionResponse> actuatorActions) {
+        this.actuatorActions = actuatorActions != null ? actuatorActions : new ArrayList<>();
     }
 }

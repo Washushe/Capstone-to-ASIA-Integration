@@ -1,17 +1,23 @@
 package com.group11.compostsystem.controller;
 
+import com.group11.compostsystem.dto.ActuatorLogResponse;
 import com.group11.compostsystem.dto.ActuatorStatusResponse;
-import com.group11.compostsystem.dto.SensorData;
+import com.group11.compostsystem.dto.SensorReadingRequest;
 import com.group11.compostsystem.dto.SensorReadingResponse;
 import com.group11.compostsystem.dto.SensorSimulationRequest;
 import com.group11.compostsystem.dto.SensorSimulationResponse;
+import com.group11.compostsystem.service.ActuatorLogService;
 import com.group11.compostsystem.service.SensorReadingService;
 import com.group11.compostsystem.service.SensorSimulationService;
 import com.group11.compostsystem.service.ThresholdService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Arrays;
 import java.util.List;
 
 @RestController
@@ -25,13 +31,16 @@ public class SensorController {
     private final SensorSimulationService sensorSimulationService;
     private final SensorReadingService sensorReadingService;
     private final ThresholdService thresholdService;
+    private final ActuatorLogService actuatorLogService;
 
     public SensorController(SensorSimulationService sensorSimulationService,
-                           SensorReadingService sensorReadingService,
-                           ThresholdService thresholdService) {
+                            SensorReadingService sensorReadingService,
+                            ThresholdService thresholdService,
+                            ActuatorLogService actuatorLogService) {
         this.sensorSimulationService = sensorSimulationService;
         this.sensorReadingService = sensorReadingService;
         this.thresholdService = thresholdService;
+        this.actuatorLogService = actuatorLogService;
     }
 
     @PostMapping("/sensor-simulation")
@@ -40,42 +49,24 @@ public class SensorController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/sensor-simulation/run-once")
+    public ResponseEntity<SensorReadingResponse> runOneSensorSimulation() {
+        var thresholds = thresholdService.getThresholdSettings();
+        SensorReadingResponse latestReading = sensorReadingService.getLatestSensorReading();
+        SensorReadingRequest request = sensorSimulationService.generateMockSensorReading(latestReading, thresholds);
+        SensorReadingResponse response = sensorReadingService.saveSensorReading(request);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/actuator-status")
     public ResponseEntity<ActuatorStatusResponse> getActuatorStatus() {
-        try {
-            // Get current thresholds
-            var thresholds = thresholdService.getThresholdSettings();
+        ActuatorStatusResponse response = actuatorLogService.getLatestActuatorStatus();
+        return ResponseEntity.ok(response);
+    }
 
-            // Get latest sensor reading
-            SensorReadingResponse latestReading = sensorReadingService.getLatestSensorReading();
-
-            if (latestReading != null) {
-                // Convert to sensor data format
-                List<SensorData> sensorDataList = Arrays.asList(
-                    new SensorData("temperature", "Temperature", latestReading.getTemperatureC().doubleValue(), "°C", false, null),
-                    new SensorData("moisture", "Moisture", latestReading.getMoistureLevel().doubleValue(), "%", false, null),
-                    new SensorData("gas", "Gas Concentration", latestReading.getGasLevel().doubleValue(), "PPM", false, null),
-                    new SensorData("humidity", "Humidity", latestReading.getHumidityLevel().doubleValue(), "%", false, null)
-                );
-
-                // Determine actuator status based on current readings
-                boolean fanActive = sensorDataList.stream().anyMatch(sensor ->
-                    (sensor.getId().equals("gas") && sensor.getValue() > thresholds.getGasMax().doubleValue()) ||
-                    (sensor.getId().equals("temperature") && sensor.getValue() > 35.0)
-                );
-
-                boolean waterPumpActive = sensorDataList.stream().anyMatch(sensor ->
-                    sensor.getId().equals("moisture") && sensor.getValue() < thresholds.getMoistureMin().doubleValue()
-                );
-
-                return ResponseEntity.ok(new ActuatorStatusResponse(fanActive, waterPumpActive));
-            } else {
-                // No readings yet, actuators inactive
-                return ResponseEntity.ok(new ActuatorStatusResponse(false, false));
-            }
-        } catch (Exception e) {
-            // If there's an error getting readings, assume actuators are inactive
-            return ResponseEntity.ok(new ActuatorStatusResponse(false, false));
-        }
+    @GetMapping("/actuator-logs")
+    public ResponseEntity<List<ActuatorLogResponse>> getActuatorLogs() {
+        List<ActuatorLogResponse> response = actuatorLogService.getActuatorLogHistory();
+        return ResponseEntity.ok(response);
     }
 }

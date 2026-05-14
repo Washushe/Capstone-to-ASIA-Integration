@@ -4,30 +4,34 @@ export const mockSensors = [
   {
     id: 'temperature',
     name: 'Temperature',
-    value: 28.5,
+    value: 35,
     unit: '°C',
-    optimalRange: { min: 25, max: 35 },
+    optimalRange: { min: 30, max: 50 },
+    databaseRange: { min: 28, max: 45 },
   },
   {
     id: 'moisture',
     name: 'Moisture',
-    value: 65,
+    value: 60,
     unit: '%',
     optimalRange: { min: 50, max: 70 },
+    databaseRange: { min: 35, max: 80 },
   },
   {
     id: 'gas',
-    name: 'Gas Concentration',
-    value: 1200,
-    unit: 'PPM',
+    name: 'Gas Level',
+    value: 1000,
+    unit: 'index',
     optimalRange: { min: 800, max: 1200 },
+    databaseRange: { min: 700, max: 1600 },
   },
   {
     id: 'humidity',
     name: 'Humidity',
     value: 55,
     unit: '%',
-    optimalRange: { min: 45, max: 75 },
+    optimalRange: { min: 40, max: 70 },
+    databaseRange: { min: 40, max: 75 },
   },
 ];
 
@@ -37,6 +41,11 @@ const GAS_HIGH_THRESHOLD = 1200;
 const defaultThresholds = {
   moistureMin: 50,
   gasMax: GAS_HIGH_THRESHOLD,
+  readingIntervalSeconds: 30,
+  sprayDurationSeconds: 5,
+  fanDurationSeconds: 5,
+  sprayCooldownSeconds: 30,
+  fanCooldownSeconds: 30,
 };
 
 function clamp(value, min, max) {
@@ -49,11 +58,10 @@ function getActuatorState(lastReading, thresholds) {
   }
 
   const gas = lastReading.find((entry) => entry.id === 'gas');
-  const temp = lastReading.find((entry) => entry.id === 'temperature');
   const moisture = lastReading.find((entry) => entry.id === 'moisture');
 
   return {
-    fanActive: Boolean(gas?.value > thresholds.gasMax || temp?.value > 35),
+    fanActive: Boolean(gas?.value > thresholds.gasMax),
     pumpActive: Boolean(moisture?.value < thresholds.moistureMin),
   };
 }
@@ -71,12 +79,12 @@ export function getSensorStatus(sensorId, value, thresholds = null) {
       if (value > currentThresholds.gasMax) return 'HIGH';
       return 'OPTIMAL';
     case 'temperature':
-      if (value < 25) return 'LOW';
-      if (value > 35) return 'HIGH';
+      if (value < 30) return 'LOW';
+      if (value > 50) return 'HIGH';
       return 'OPTIMAL';
     case 'humidity':
-      if (value < 45) return 'LOW';
-      if (value > 75) return 'HIGH';
+      if (value < 40) return 'LOW';
+      if (value > 70) return 'HIGH';
       return 'OPTIMAL';
     default:
       return 'OPTIMAL';
@@ -103,10 +111,7 @@ function simulateSensorValue(sensorId, lastValue, fanActive, pumpActive, thresho
 
     case 'temperature': {
       const sourceValue = lastValue;
-      if (sourceValue > 35) {
-        return sourceValue - (1 + Math.random() * 1.5) + noise;
-      }
-      if (sourceValue < 25) {
+      if (sourceValue < 30) {
         return sourceValue + (0.8 + Math.random() * 1.2) + noise;
       }
       const drift = (Math.random() - 0.5) * 1.8;
@@ -118,7 +123,7 @@ function simulateSensorValue(sensorId, lastValue, fanActive, pumpActive, thresho
       if (sourceValue < thresholds.moistureMin) {
         return sourceValue + (3 + Math.random() * 3) + noise + (pumpActive ? 1.5 : 0);
       }
-      if (sourceValue > 75) {
+      if (sourceValue > 70) {
         return sourceValue - (1.5 + Math.random() * 3) + noise;
       }
       const drift = (Math.random() - 0.5) * 6;
@@ -127,10 +132,10 @@ function simulateSensorValue(sensorId, lastValue, fanActive, pumpActive, thresho
 
     case 'humidity': {
       const sourceValue = lastValue;
-      if (sourceValue < 45) {
+      if (sourceValue < 40) {
         return sourceValue + (1 + Math.random() * 2.5) + noise;
       }
-      if (sourceValue > 75) {
+      if (sourceValue > 70) {
         return sourceValue - (1 + Math.random() * 2.5) + noise;
       }
       const drift = (Math.random() - 0.5) * 2;
@@ -158,21 +163,20 @@ export function getCurrentSensorData(lastReading = null, thresholds = null) {
       thresholdSettings
     );
 
-    value = clamp(value, sensor.optimalRange.min - 20, sensor.optimalRange.max + 60);
+    value = clamp(value, sensor.databaseRange.min, sensor.databaseRange.max);
     value = Number(value.toFixed(1));
 
     const status = getSensorStatus(sensor.id, value, thresholdSettings);
     const isGasActive = sensor.id === 'gas' && status === 'HIGH';
-    const isTemperatureActive = sensor.id === 'temperature' && status === 'HIGH';
     const isMoistureActive = sensor.id === 'moisture' && status === 'LOW';
 
     return {
       ...sensor,
       value,
       status,
-      actuatorActive: isGasActive || isTemperatureActive || isMoistureActive,
+      actuatorActive: isGasActive || isMoistureActive,
       actuatorName:
-        isGasActive || isTemperatureActive ? 'Fan' : isMoistureActive ? 'Water Pump' : null,
+        isGasActive ? 'Fan' : isMoistureActive ? 'Water Spray' : null,
     };
   });
 }

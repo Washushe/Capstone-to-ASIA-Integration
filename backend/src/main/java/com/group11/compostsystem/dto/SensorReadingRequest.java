@@ -4,10 +4,19 @@ import java.math.BigDecimal;
 
 public class SensorReadingRequest {
 
+    private Integer batchId;
     private BigDecimal moistureLevel;
     private BigDecimal gasLevel;
     private BigDecimal temperatureC;
     private BigDecimal humidityLevel;
+
+    public Integer getBatchId() {
+        return batchId;
+    }
+
+    public void setBatchId(Integer batchId) {
+        this.batchId = batchId;
+    }
 
     public BigDecimal getMoistureLevel() {
         return moistureLevel;

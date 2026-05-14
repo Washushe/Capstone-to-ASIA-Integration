@@ -1,9 +1,13 @@
-﻿import { useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import Layout from '../components/Layout.jsx';
-import { getThresholdSettings, getSensorSimulation, getActuatorStatus, getLatestSensorReading } from '../services/api.js';
-import { getCurrentSensorData } from '../services/mockSensors.js';
+import {
+  getActuatorStatus,
+  getLatestSensorReading,
+  getThresholdSettings,
+} from '../services/api.js';
 
 const GAS_HIGH_THRESHOLD = 1200;
+const DASHBOARD_POLL_INTERVAL_MS = 30000;
 const DASHBOARD_SENSORS_KEY = 'dashboardSensors';
 const DASHBOARD_THRESHOLDS_KEY = 'dashboardThresholds';
 
@@ -27,49 +31,51 @@ const loadStoredThresholds = () => {
   }
 };
 
-const buildSensorCards = (reading, settings) => [
+const buildSensorCards = (reading) => [
   {
     id: 'temperature',
     name: 'Temperature',
     value: reading.temperatureC,
     unit: '°C',
-    actuatorActive: reading.temperatureC > 35,
-    actuatorName: reading.temperatureC > 35 ? 'Fan' : null,
+    description: 'Chamber reading saved for monitoring and prediction',
   },
   {
     id: 'moisture',
     name: 'Moisture',
     value: reading.moistureLevel,
     unit: '%',
-    actuatorActive: reading.moistureLevel < settings.moistureMin,
-    actuatorName: reading.moistureLevel < settings.moistureMin ? 'Water Pump' : null,
+    description: 'Water spray is triggered only below the moisture minimum',
   },
   {
     id: 'gas',
-    name: 'Gas Concentration',
+    name: 'Gas Level',
     value: reading.gasLevel,
-    unit: 'PPM',
-    actuatorActive: reading.gasLevel > settings.gasMax,
-    actuatorName: reading.gasLevel > settings.gasMax ? 'Fan' : null,
+    unit: 'index',
+    description: 'Fan is triggered only above the gas maximum',
   },
   {
     id: 'humidity',
     name: 'Humidity',
     value: reading.humidityLevel,
     unit: '%',
-    actuatorActive: false,
-    actuatorName: null,
+    description: 'Humidity is saved for monitoring and prediction',
   },
 ];
+
+const formatDateTime = (value) => {
+  if (!value) return 'No data yet';
+  return new Date(value).toLocaleString();
+};
 
 function Dashboard({ user, online }) {
   const [sensors, setSensors] = useState(() => loadStoredSensors());
   const [thresholds, setThresholds] = useState(() => loadStoredThresholds());
-  const sensorsRef = useRef(sensors);
+  const [actuatorStatus, setActuatorStatus] = useState(null);
+  const [latestReadingAt, setLatestReadingAt] = useState(null);
+  const [dataState, setDataState] = useState('loading');
   const thresholdsRef = useRef(thresholds);
 
   useEffect(() => {
-    sensorsRef.current = sensors;
     localStorage.setItem(DASHBOARD_SENSORS_KEY, JSON.stringify(sensors));
   }, [sensors]);
 
@@ -82,7 +88,7 @@ function Dashboard({ user, online }) {
     let active = true;
 
     const loadData = async () => {
-      let settings = { moistureMin: 50, gasMax: GAS_HIGH_THRESHOLD };
+      let settings = thresholdsRef.current;
 
       try {
         const apiSettings = await getThresholdSettings();
@@ -95,106 +101,41 @@ function Dashboard({ user, online }) {
           setThresholds(settings);
         }
       } catch {
-        // Keep the last known thresholds when backend cannot be reached.
+        // Keep cached thresholds while the backend is unavailable.
       }
 
       try {
-        const latestReading = await getLatestSensorReading();
+        const [latestReading, latestActuatorStatus] = await Promise.all([
+          getLatestSensorReading(),
+          getActuatorStatus(),
+        ]);
+
+        if (!active) return;
+
+        setActuatorStatus(latestActuatorStatus);
 
         if (latestReading && latestReading.temperatureC != null) {
-          const sensorData = buildSensorCards(latestReading, settings);
-
-          if (active) {
-            setSensors(sensorData);
-          }
+          setSensors(buildSensorCards(latestReading));
+          setLatestReadingAt(latestReading.createdAt);
+          setDataState('live');
           return;
         }
 
-        const simulationResponse = await getSensorSimulation(
-          sensorsRef.current,
-          settings.moistureMin,
-          settings.gasMax
-        );
-        const actuatorStatus = await getActuatorStatus();
+        setSensors([]);
+        setLatestReadingAt(null);
+        setDataState('waiting');
+      } catch (error) {
+        console.error('Failed to load dashboard data from backend:', error);
 
         if (active) {
-          setSensors(
-            simulationResponse.sensors.map((sensor) => ({
-              ...sensor,
-              actuatorActive:
-                sensor.id === 'gas' || sensor.id === 'temperature'
-                  ? actuatorStatus.fanActive
-                  : sensor.id === 'moisture'
-                  ? actuatorStatus.waterPumpActive
-                  : false,
-              actuatorName:
-                sensor.id === 'gas' || sensor.id === 'temperature'
-                  ? 'Fan'
-                  : sensor.id === 'moisture'
-                  ? 'Water Pump'
-                  : null,
-            }))
-          );
-        }
-      } catch (error) {
-        console.error('Failed to load sensor data from backend:', error);
-
-        if (!sensorsRef.current.length && active) {
-          const mockSensorData = getCurrentSensorData(sensorsRef.current, {
-            moistureMin: settings.moistureMin,
-            gasMax: settings.gasMax,
-          });
-          setSensors(mockSensorData);
+          setDataState('offline');
         }
       }
     };
 
     loadData();
 
-    const interval = setInterval(async () => {
-      try {
-        const latestReading = await getLatestSensorReading();
-
-        if (latestReading && latestReading.temperatureC != null) {
-          const updatedData = buildSensorCards(latestReading, thresholdsRef.current);
-          if (active) {
-            setSensors(updatedData);
-          }
-          return;
-        }
-
-        if (!sensorsRef.current.length) {
-          const simulationResponse = await getSensorSimulation(
-            sensorsRef.current,
-            thresholdsRef.current.moistureMin,
-            thresholdsRef.current.gasMax
-          );
-          const actuatorStatus = await getActuatorStatus();
-
-          if (active) {
-            setSensors(
-              simulationResponse.sensors.map((sensor) => ({
-                ...sensor,
-                actuatorActive:
-                  sensor.id === 'gas' || sensor.id === 'temperature'
-                    ? actuatorStatus.fanActive
-                    : sensor.id === 'moisture'
-                    ? actuatorStatus.waterPumpActive
-                    : false,
-                actuatorName:
-                  sensor.id === 'gas' || sensor.id === 'temperature'
-                    ? 'Fan'
-                    : sensor.id === 'moisture'
-                    ? 'Water Pump'
-                    : null,
-              }))
-            );
-          }
-        }
-      } catch (error) {
-        console.error('Background polling failed for sensor data:', error);
-      }
-    }, 60000);
+    const interval = setInterval(loadData, DASHBOARD_POLL_INTERVAL_MS);
 
     return () => {
       active = false;
@@ -203,13 +144,25 @@ function Dashboard({ user, online }) {
   }, []);
 
   const systemStatus = useMemo(() => {
-    return sensors.length > 0 ? 'Live sensor data is incoming' : 'Waiting for sensor data';
-  }, [sensors]);
+    if (dataState === 'live') {
+      return 'Live database readings are active';
+    }
+
+    if (dataState === 'offline') {
+      return sensors.length > 0
+        ? 'Backend unavailable. Showing last cached database reading'
+        : 'Backend unavailable. Waiting for database sensor data';
+    }
+
+    return sensors.length > 0
+      ? 'Showing last cached database reading'
+      : 'Waiting for database sensor data';
+  }, [dataState, sensors.length]);
 
   const getStatus = (sensor) => {
     if (sensor.id === 'moisture') {
       if (sensor.value < thresholds.moistureMin) return 'Low';
-      if (sensor.value > 75) return 'High';
+      if (sensor.value > 70) return 'High';
       return 'Optimal';
     }
     if (sensor.id === 'gas') {
@@ -218,17 +171,41 @@ function Dashboard({ user, online }) {
       return 'Optimal';
     }
     if (sensor.id === 'temperature') {
-      if (sensor.value > 35) return 'High';
-      if (sensor.value < 25) return 'Low';
+      if (sensor.value > 50) return 'High';
+      if (sensor.value < 30) return 'Low';
       return 'Optimal';
     }
     if (sensor.id === 'humidity') {
-      if (sensor.value > 75) return 'High';
-      if (sensor.value < 45) return 'Low';
+      if (sensor.value > 70) return 'High';
+      if (sensor.value < 40) return 'Low';
       return 'Optimal';
     }
     return 'Unknown';
   };
+
+  const getRuntimeStatus = (actuatorType) => {
+    return actuatorStatus?.actuators?.find(
+      (actuator) => actuator.actuatorType === actuatorType
+    );
+  };
+
+  const getActuatorLabel = (runtimeStatus, active) => {
+    if (active) return 'ON';
+
+    const cooldownUntil = runtimeStatus?.cooldownUntil
+      ? new Date(runtimeStatus.cooldownUntil)
+      : null;
+
+    if (cooldownUntil && cooldownUntil > new Date()) {
+      return `Cooldown until ${cooldownUntil.toLocaleTimeString()}`;
+    }
+
+    return 'OFF';
+  };
+
+  const fanRuntime = getRuntimeStatus('FAN');
+  const sprayRuntime = getRuntimeStatus('WATER_SPRAY');
+  const latestActivity = actuatorStatus?.latestActivity;
 
   return (
     <Layout
@@ -242,6 +219,9 @@ function Dashboard({ user, online }) {
           <h2>Dashboard</h2>
           <p>{systemStatus}</p>
         </div>
+        <div className="timestamp-chip">
+          Latest reading: {formatDateTime(latestReadingAt)}
+        </div>
       </div>
 
       <div className="cards-grid">
@@ -250,32 +230,61 @@ function Dashboard({ user, online }) {
           return (
             <div key={sensor.id} className={`status-card ${status.toLowerCase()}`}>
               <div className="card-icon">
-                {sensor.id === 'temperature' && '🌡'}
-                {sensor.id === 'moisture' && '💧'}
-                {sensor.id === 'gas' && '🌫'}
-                {sensor.id === 'humidity' && '💨'}
+                {sensor.id === 'temperature' && 'Temp'}
+                {sensor.id === 'moisture' && 'H2O'}
+                {sensor.id === 'gas' && 'Gas'}
+                {sensor.id === 'humidity' && 'RH'}
               </div>
               <h3>{sensor.name}</h3>
               <div className="card-value">
-                {sensor.value !== null ? sensor.value.toFixed(1) : '--'}
+                {sensor.value !== null ? Number(sensor.value).toFixed(1) : '--'}
                 <span>{sensor.unit}</span>
               </div>
               <div className={`card-status ${status.toLowerCase()}`}>
                 {status}
               </div>
-              <div className="card-description">
-                {sensor.id === 'gas' && 'Fan is active when gas hits high'}
-                {sensor.id === 'moisture' && 'Spray is active when moisture hits low'}
-                {sensor.id === 'temperature' && 'Fan is active when temperature exceeds 35°C'}
-                {sensor.id === 'humidity' && 'Humidity monitoring'}
-              </div>
-              {sensor.actuatorActive && sensor.actuatorName && (
-                <div className="card-action">{sensor.actuatorName} active</div>
-              )}
+              <div className="card-description">{sensor.description}</div>
               {sensor.value === null && <p className="placeholder-text">Awaiting sensor data</p>}
             </div>
           );
         })}
+      </div>
+
+      <div className="actuator-dashboard-grid">
+        <div className="actuator-card">
+          <div className="actuator-title">Fan</div>
+          <div className={`actuator-badge ${actuatorStatus?.fanActive ? 'active' : 'inactive'}`}>
+            {getActuatorLabel(fanRuntime, actuatorStatus?.fanActive)}
+          </div>
+          <p>Triggered only when gas level is above {thresholds.gasMax}.</p>
+          <span>Last pulse: {formatDateTime(fanRuntime?.lastActivatedAt)}</span>
+        </div>
+
+        <div className="actuator-card">
+          <div className="actuator-title">Water Spray</div>
+          <div className={`actuator-badge ${actuatorStatus?.waterPumpActive ? 'active' : 'inactive'}`}>
+            {getActuatorLabel(sprayRuntime, actuatorStatus?.waterPumpActive)}
+          </div>
+          <p>Triggered only when moisture is below {thresholds.moistureMin}%.</p>
+          <span>Last pulse: {formatDateTime(sprayRuntime?.lastActivatedAt)}</span>
+        </div>
+
+        <div className="actuator-card latest-activity-card">
+          <div className="actuator-title">Latest Actuator Activity</div>
+          {latestActivity ? (
+            <>
+              <strong>{latestActivity.actuatorType}</strong>
+              <p>
+                {latestActivity.triggerSource} value {latestActivity.triggerValue} crossed threshold {latestActivity.thresholdValue}.
+              </p>
+              <span>
+                {latestActivity.durationSeconds}s pulse, {formatDateTime(latestActivity.startedAt)}
+              </span>
+            </>
+          ) : (
+            <p>No actuator activity has been logged yet.</p>
+          )}
+        </div>
       </div>
     </Layout>
   );
