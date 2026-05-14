@@ -8,6 +8,7 @@ public class CompostBatchRequest {
     private Integer expectedDurationDays;
     private String binLocation;
     private String notes;
+    private String currentPassword;
 
     public String getBatchName() {
         return batchName;
@@ -63,5 +64,13 @@ public class CompostBatchRequest {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public String getCurrentPassword() {
+        return currentPassword;
+    }
+
+    public void setCurrentPassword(String currentPassword) {
+        this.currentPassword = currentPassword;
     }
 }

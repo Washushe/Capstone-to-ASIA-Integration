@@ -1590,6 +1590,14 @@ button {
   gap: 16px;
 }
 
+.active-batch-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .active-batch-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1620,6 +1628,20 @@ button {
   gap: 16px;
 }
 
+.batch-form-header {
+  display: grid;
+  gap: 6px;
+}
+
+.batch-form-header h4,
+.batch-form-header p {
+  margin: 0;
+}
+
+.batch-form-header p {
+  color: #94a3b8;
+}
+
 .batch-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1647,6 +1669,12 @@ button {
 .batch-form textarea {
   min-height: 96px;
   resize: vertical;
+}
+
+.batch-form input:disabled,
+.batch-form textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .batch-notes-field {
@@ -1687,6 +1715,11 @@ button {
   color: #e2e8f0;
   cursor: pointer;
   padding: 4px;
+}
+
+.batch-select-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .batch-status-pill {

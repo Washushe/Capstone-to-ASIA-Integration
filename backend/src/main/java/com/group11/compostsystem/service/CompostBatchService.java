@@ -72,7 +72,19 @@ public class CompostBatchService {
         );
     }
 
-    public CompostBatchResponse updateBatch(Integer batchId, CompostBatchRequest request) {
+    public CompostBatchResponse updateBatch(Integer batchId, CompostBatchRequest request, Integer updatedByUserId) {
+        if (updatedByUserId == null) {
+            throw new IllegalArgumentException("A valid logged-in user is required to update compost batch details.");
+        }
+
+        if (request.getCurrentPassword() == null || request.getCurrentPassword().isBlank()) {
+            throw new IllegalArgumentException("Current password is required before saving compost batch changes.");
+        }
+
+        if (!isCurrentPasswordValid(updatedByUserId, request.getCurrentPassword())) {
+            throw new IllegalArgumentException("Current password is incorrect.");
+        }
+
         validateBatchRequest(request);
 
         return jdbcTemplate.queryForObject(
@@ -121,6 +133,17 @@ public class CompostBatchService {
         if (request.getExpectedDurationDays() != null && request.getExpectedDurationDays() <= 0) {
             throw new IllegalArgumentException("Expected duration must be greater than zero.");
         }
+    }
+
+    private boolean isCurrentPasswordValid(Integer userId, String currentPassword) {
+        Integer passwordValid = jdbcTemplate.queryForObject(
+                "CALL sp_verify_user_password(?, ?)",
+                Integer.class,
+                userId,
+                currentPassword
+        );
+
+        return passwordValid != null && passwordValid == 1;
     }
 
     private CompostBatchResponse mapBatch(ResultSet rs) throws SQLException {

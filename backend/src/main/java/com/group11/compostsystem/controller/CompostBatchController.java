@@ -85,8 +85,8 @@ public class CompostBatchController {
                                          @RequestBody CompostBatchRequest request,
                                          @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
         try {
-            resolveUserId(authorizationHeader);
-            return ResponseEntity.ok(compostBatchService.updateBatch(batchId, request));
+            Integer userId = resolveUserId(authorizationHeader);
+            return ResponseEntity.ok(compostBatchService.updateBatch(batchId, request, userId));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(error(e.getMessage()));
         } catch (EmptyResultDataAccessException e) {

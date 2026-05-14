@@ -48,15 +48,23 @@ function ActiveCompostBatchSection() {
   const [batches, setBatches] = useState([]);
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [form, setForm] = useState(() => emptyForm());
+  const [mode, setMode] = useState('view');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [passwordPromptOpen, setPasswordPromptOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const selectedBatch = useMemo(
     () => batches.find((batch) => batch.batchId === selectedBatchId) || activeBatch,
     [activeBatch, batches, selectedBatchId]
   );
+
+  const isCreating = mode === 'create';
+  const isEditing = mode === 'edit';
+  const formEditable = isCreating || isEditing;
 
   async function loadBatches() {
     setLoading(true);
@@ -86,6 +94,12 @@ function ActiveCompostBatchSection() {
     loadBatches();
   }, []);
 
+  function clearMessages() {
+    setMessage('');
+    setError('');
+    setPasswordError('');
+  }
+
   function updateField(field, value) {
     setForm((current) => ({
       ...current,
@@ -94,17 +108,46 @@ function ActiveCompostBatchSection() {
   }
 
   function selectBatch(batch) {
+    if (mode !== 'view') {
+      return;
+    }
+
     setSelectedBatchId(batch.batchId);
     setForm(formFromBatch(batch));
-    setMessage('');
-    setError('');
+    clearMessages();
+  }
+
+  function handleStartCreate() {
+    setMode('create');
+    setSelectedBatchId(null);
+    setForm(emptyForm());
+    clearMessages();
+  }
+
+  function handleStartEdit() {
+    if (!activeBatch?.batchId) {
+      setError('No active compost batch is available to edit.');
+      return;
+    }
+
+    setMode('edit');
+    setSelectedBatchId(activeBatch.batchId);
+    setForm(formFromBatch(activeBatch));
+    clearMessages();
+  }
+
+  function handleCancelEdit() {
+    setMode('view');
+    setCurrentPassword('');
+    setPasswordPromptOpen(false);
+    setForm(formFromBatch(selectedBatch || activeBatch));
+    clearMessages();
   }
 
   async function handleCreateBatch(event) {
     event.preventDefault();
     setSaving(true);
-    setMessage('');
-    setError('');
+    clearMessages();
 
     try {
       const created = await createCompostBatch({
@@ -112,6 +155,7 @@ function ActiveCompostBatchSection() {
         expectedDurationDays: Number(form.expectedDurationDays),
       });
       setMessage(`${created.batchCode} is now active.`);
+      setMode('view');
       await loadBatches();
     } catch (err) {
       setError(err.message || 'Failed to create compost batch.');
@@ -120,25 +164,43 @@ function ActiveCompostBatchSection() {
     }
   }
 
-  async function handleUpdateBatch() {
-    if (!selectedBatch?.batchId) {
-      setError('Select a compost batch first.');
+  function handleRequestUpdate(event) {
+    event.preventDefault();
+
+    if (!activeBatch?.batchId || selectedBatchId !== activeBatch.batchId) {
+      setError('Only the current active compost batch can be edited here.');
+      return;
+    }
+
+    clearMessages();
+    setCurrentPassword('');
+    setPasswordPromptOpen(true);
+  }
+
+  async function confirmUpdateBatch(event) {
+    event.preventDefault();
+    setPasswordError('');
+
+    if (!currentPassword) {
+      setPasswordError('Enter your current password to save compost batch changes.');
       return;
     }
 
     setSaving(true);
-    setMessage('');
-    setError('');
 
     try {
-      const updated = await updateCompostBatch(selectedBatch.batchId, {
+      const updated = await updateCompostBatch(activeBatch.batchId, {
         ...form,
         expectedDurationDays: Number(form.expectedDurationDays),
+        currentPassword,
       });
       setMessage(`${updated.batchCode} was updated.`);
+      setMode('view');
+      setCurrentPassword('');
+      setPasswordPromptOpen(false);
       await loadBatches();
     } catch (err) {
-      setError(err.message || 'Failed to update compost batch.');
+      setPasswordError(err.message || 'Failed to update compost batch.');
     } finally {
       setSaving(false);
     }
@@ -146,8 +208,7 @@ function ActiveCompostBatchSection() {
 
   async function handleSetActive(batchId) {
     setSaving(true);
-    setMessage('');
-    setError('');
+    clearMessages();
 
     try {
       const updated = await setActiveCompostBatch(batchId);
@@ -167,8 +228,7 @@ function ActiveCompostBatchSection() {
     }
 
     setSaving(true);
-    setMessage('');
-    setError('');
+    clearMessages();
 
     try {
       const updated = await updateCompostBatchStatus(selectedBatch.batchId, status);
@@ -201,9 +261,21 @@ function ActiveCompostBatchSection() {
               : 'No active compost batch'}
           </p>
         </div>
-        <span className={`batch-status-pill ${activeBatch ? 'active' : 'inactive'}`}>
-          {activeBatch?.status || 'NONE'}
-        </span>
+        <div className="active-batch-header-actions">
+          <span className={`batch-status-pill ${activeBatch ? 'active' : 'inactive'}`}>
+            {activeBatch?.status || 'NONE'}
+          </span>
+          {mode === 'view' && activeBatch && (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleStartEdit}
+              disabled={saving}
+            >
+              Edit Active Batch
+            </button>
+          )}
+        </div>
       </div>
 
       {message && <p className="form-message success">{message}</p>}
@@ -230,13 +302,29 @@ function ActiveCompostBatchSection() {
         </div>
       )}
 
-      <form className="batch-form" onSubmit={handleCreateBatch}>
+      <form className="batch-form" onSubmit={isCreating ? handleCreateBatch : handleRequestUpdate}>
+        <div className="batch-form-header">
+          <h4>
+            {isCreating
+              ? 'Create Compost Batch'
+              : isEditing
+                ? 'Edit Active Compost Batch'
+                : 'Batch Information'}
+          </h4>
+          <p>
+            {formEditable
+              ? 'Update the compost batch information below.'
+              : 'Select Edit Active Batch before changing compost batch information.'}
+          </p>
+        </div>
+
         <div className="batch-form-grid">
           <label>
             Batch name
             <input
               type="text"
               value={form.batchName}
+              disabled={!formEditable || saving}
               onChange={(event) => updateField('batchName', event.target.value)}
             />
           </label>
@@ -246,6 +334,7 @@ function ActiveCompostBatchSection() {
             <input
               type="text"
               value={form.primaryMaterial}
+              disabled={!formEditable || saving}
               onChange={(event) => updateField('primaryMaterial', event.target.value)}
             />
           </label>
@@ -255,6 +344,7 @@ function ActiveCompostBatchSection() {
             <input
               type="date"
               value={form.startDate}
+              disabled={!formEditable || saving}
               onChange={(event) => updateField('startDate', event.target.value)}
             />
           </label>
@@ -265,6 +355,7 @@ function ActiveCompostBatchSection() {
               type="number"
               min="1"
               value={form.expectedDurationDays}
+              disabled={!formEditable || saving}
               onChange={(event) => updateField('expectedDurationDays', event.target.value)}
             />
           </label>
@@ -274,6 +365,7 @@ function ActiveCompostBatchSection() {
             <input
               type="text"
               value={form.binLocation}
+              disabled={!formEditable || saving}
               onChange={(event) => updateField('binLocation', event.target.value)}
             />
           </label>
@@ -282,6 +374,7 @@ function ActiveCompostBatchSection() {
             Material description
             <textarea
               value={form.materialDescription}
+              disabled={!formEditable || saving}
               onChange={(event) => updateField('materialDescription', event.target.value)}
             />
           </label>
@@ -290,27 +383,51 @@ function ActiveCompostBatchSection() {
             Notes
             <textarea
               value={form.notes}
+              disabled={!formEditable || saving}
               onChange={(event) => updateField('notes', event.target.value)}
             />
           </label>
         </div>
 
         <div className="batch-action-row">
-          <button type="submit" className="primary-button" disabled={saving}>
-            {saving ? 'Saving...' : 'Create Batch'}
-          </button>
-          <button type="button" className="secondary-button" onClick={handleUpdateBatch} disabled={saving}>
-            Update Batch
-          </button>
-          <button type="button" className="secondary-button" onClick={() => handleStatus('READY')} disabled={saving}>
-            Mark READY
-          </button>
-          <button type="button" className="secondary-button" onClick={() => handleStatus('COMPLETED')} disabled={saving}>
-            Mark COMPLETED
-          </button>
-          <button type="button" className="secondary-button" onClick={() => handleStatus('CANCELLED')} disabled={saving}>
-            Mark CANCELLED
-          </button>
+          {isCreating && (
+            <>
+              <button type="submit" className="primary-button" disabled={saving}>
+                {saving ? 'Saving...' : 'Create Batch'}
+              </button>
+              <button type="button" className="secondary-button" onClick={handleCancelEdit} disabled={saving}>
+                Cancel
+              </button>
+            </>
+          )}
+
+          {isEditing && (
+            <>
+              <button type="submit" className="primary-button" disabled={saving}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button type="button" className="secondary-button" onClick={handleCancelEdit} disabled={saving}>
+                Cancel
+              </button>
+            </>
+          )}
+
+          {mode === 'view' && (
+            <>
+              <button type="button" className="primary-button" onClick={handleStartCreate} disabled={saving}>
+                Create Batch
+              </button>
+              <button type="button" className="secondary-button" onClick={() => handleStatus('READY')} disabled={saving}>
+                Mark READY
+              </button>
+              <button type="button" className="secondary-button" onClick={() => handleStatus('COMPLETED')} disabled={saving}>
+                Mark COMPLETED
+              </button>
+              <button type="button" className="secondary-button" onClick={() => handleStatus('CANCELLED')} disabled={saving}>
+                Mark CANCELLED
+              </button>
+            </>
+          )}
         </div>
       </form>
 
@@ -321,7 +438,12 @@ function ActiveCompostBatchSection() {
               key={batch.batchId}
               className={`batch-list-row ${batch.batchId === selectedBatch?.batchId ? 'selected' : ''}`}
             >
-              <button type="button" className="batch-select-button" onClick={() => selectBatch(batch)}>
+              <button
+                type="button"
+                className="batch-select-button"
+                onClick={() => selectBatch(batch)}
+                disabled={mode !== 'view'}
+              >
                 <strong>{batch.batchCode}</strong>
                 <span>{batch.batchName}</span>
               </button>
@@ -333,13 +455,51 @@ function ActiveCompostBatchSection() {
                   type="button"
                   className="secondary-button"
                   onClick={() => handleSetActive(batch.batchId)}
-                  disabled={saving}
+                  disabled={saving || mode !== 'view'}
                 >
                   Set Active
                 </button>
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {passwordPromptOpen && (
+        <div className="threshold-password-overlay" role="dialog" aria-modal="true" aria-labelledby="batch-password-title">
+          <form className="threshold-password-card" onSubmit={confirmUpdateBatch}>
+            <h3 id="batch-password-title">Confirm Batch Change</h3>
+            <p>Enter your current account password before saving changes to the active compost batch.</p>
+            {passwordError && <p className="form-message error">{passwordError}</p>}
+
+            <label>
+              Current password
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                autoFocus
+              />
+            </label>
+
+            <div className="threshold-password-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setPasswordPromptOpen(false);
+                  setCurrentPassword('');
+                  setPasswordError('');
+                }}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="primary-button" disabled={saving}>
+                {saving ? 'Verifying...' : 'Confirm Save'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>
