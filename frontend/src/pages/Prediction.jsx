@@ -1,6 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout.jsx';
-import { generateAIPrediction } from '../services/api.js';
+import { generateAIPrediction, getSensorReadings } from '../services/api.js';
+
+const SENSOR_SERIES = [
+  { id: 'moisture', label: 'Moisture', field: 'moistureLevel', color: '#60A5FA', unit: '%' },
+  { id: 'gas', label: 'Gas', field: 'gasLevel', color: '#f97316', unit: 'PPM' },
+  { id: 'temperature', label: 'Temperature', field: 'temperatureC', color: '#fb7185', unit: '°C' },
+  { id: 'humidity', label: 'Humidity', field: 'humidityLevel', color: '#34d399', unit: '%' },
+];
+
+function formatStatus(value) {
+  if (!value) return 'Unknown';
+  if (value === 'NORMAL') return 'Optimal';
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+function formatValue(value) {
+  return value === null || value === undefined ? '--' : value.toFixed(1);
+}
 
 function Prediction({ user, online }) {
   const [batchId, setBatchId] = useState(1);
@@ -8,6 +25,94 @@ function Prediction({ user, online }) {
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [predictionError, setPredictionError] = useState(null);
+  const [sensorHistory, setSensorHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [activeSeries, setActiveSeries] = useState({
+    moisture: true,
+    gas: true,
+    temperature: true,
+    humidity: true,
+  });
+  const [hoverInfo, setHoverInfo] = useState(null);
+
+  useEffect(() => {
+    async function loadSensorHistory() {
+      try {
+        const readings = await getSensorReadings();
+        const history = Array.isArray(readings) ? readings.slice(-60).reverse() : [];
+        setSensorHistory(history);
+      } catch {
+        setSensorHistory([]);
+      } finally {
+        setHistoryLoading(false);
+      }
+    }
+
+    loadSensorHistory();
+  }, []);
+
+  const visibleSensors = SENSOR_SERIES.filter((series) => activeSeries[series.id]);
+
+  const chartData = useMemo(() => {
+    const history = sensorHistory.slice(-40);
+    const dataValues = [];
+
+    history.forEach((reading) => {
+      visibleSensors.forEach((series) => {
+        const value = reading[series.field];
+        if (value !== null && value !== undefined) {
+          dataValues.push(value);
+        }
+      });
+    });
+
+    const minValue = dataValues.length ? Math.min(...dataValues) : 0;
+    const maxValue = dataValues.length ? Math.max(...dataValues) : 100;
+    const range = Math.max(maxValue - minValue, 10);
+    const chartMin = Math.max(0, minValue - range * 0.1);
+    const chartMax = maxValue + range * 0.1;
+
+    const width = 860;
+    const height = 300;
+    const padding = 38;
+    const plotWidth = width - padding * 2;
+    const plotHeight = height - padding * 2;
+    const xStep = history.length > 1 ? plotWidth / (history.length - 1) : plotWidth;
+
+    const seriesLines = visibleSensors.map((series) => {
+      const points = history
+        .map((reading, index) => {
+          const value = reading[series.field];
+          if (value === null || value === undefined) return null;
+
+          const x = padding + index * xStep;
+          const y = padding + plotHeight * (1 - (value - chartMin) / (chartMax - chartMin));
+          return { x, y, value, reading, series };
+        })
+        .filter(Boolean);
+
+      return {
+        series,
+        points,
+        path: points.map((point) => `${point.x},${point.y}`).join(' '),
+      };
+    });
+
+    return {
+      history,
+      chartMin,
+      chartMax,
+      width,
+      height,
+      padding,
+      plotWidth,
+      plotHeight,
+      xStep,
+      seriesLines,
+    };
+  }, [sensorHistory, visibleSensors]);
+
+  const latestReading = sensorHistory.length > 0 ? sensorHistory[sensorHistory.length - 1] : null;
 
   async function handleGeneratePrediction() {
     try {
@@ -67,7 +172,7 @@ function Prediction({ user, online }) {
 
             <button
               type="button"
-              className="sensor-toggle active"
+              className="primary-button"
               onClick={handleGeneratePrediction}
               disabled={loading}
             >
@@ -82,38 +187,140 @@ function Prediction({ user, online }) {
           )}
 
           <div className="chart-frame">
-            <div className="prediction-info-box">
-              <h3>Data Used for Prediction</h3>
-              <p>
-                This prediction is generated from the selected compost batch using
-                sensor readings and actuator activity stored in the database.
-              </p>
+            <div className="chart-header-row">
+              <div>
+                <h3>Sensor Trend Chart</h3>
+                <p>
+                  Review the latest sensor history and track how actuator-set thresholds influence compost conditions.
+                </p>
+              </div>
+              <div className="legend-toggle-row">
+                {SENSOR_SERIES.map((series) => (
+                  <button
+                    key={series.id}
+                    type="button"
+                    className={`series-toggle ${activeSeries[series.id] ? 'active' : ''}`}
+                    onClick={() => setActiveSeries((prev) => ({ ...prev, [series.id]: !prev[series.id] }))}
+                    style={{ borderColor: series.color }}
+                  >
+                    <span
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: 9999,
+                        background: series.color,
+                        display: 'inline-block',
+                        marginRight: 8,
+                      }}
+                    />
+                    {series.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-              <div className="legend-list">
-                <div className="legend-item">
-                  <span className="legend-swatch" />
-                  <span>Moisture Sensor</span>
-                </div>
+            <div className="sensor-chart-wrapper">
+              {historyLoading ? (
+                <div className="empty-state">Loading historical sensor readings...</div>
+              ) : chartData.history.length === 0 ? (
+                <div className="empty-state">No sensor history available yet.</div>
+              ) : (
+                <svg className="sensor-chart" viewBox={`0 0 ${chartData.width} ${chartData.height}`}>
+                  <rect x="0" y="0" width="100%" height="100%" fill="transparent" />
 
-                <div className="legend-item">
-                  <span className="legend-swatch" />
-                  <span>Gas Sensor</span>
-                </div>
+                  {Array.from({ length: 4 }).map((_, index) => {
+                    const y = chartData.padding + (chartData.plotHeight / 3) * index;
+                    return (
+                      <line
+                        key={index}
+                        x1={chartData.padding}
+                        x2={chartData.width - chartData.padding}
+                        y1={y}
+                        y2={y}
+                        stroke="rgba(148, 163, 184, 0.12)"
+                        strokeWidth="1"
+                      />
+                    );
+                  })}
 
-                <div className="legend-item">
-                  <span className="legend-swatch" />
-                  <span>Temperature Sensor</span>
-                </div>
+                  {chartData.seriesLines.map(({ series, path }) => (
+                    <path
+                      key={series.id}
+                      d={`M${path}`}
+                      fill="none"
+                      stroke={series.color}
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  ))}
 
-                <div className="legend-item">
-                  <span className="legend-swatch" />
-                  <span>Humidity Sensor</span>
-                </div>
+                  {chartData.seriesLines.flatMap(({ series, points }) =>
+                    points.map((point, index) => (
+                      <circle
+                        key={`${series.id}-${index}`}
+                        cx={point.x}
+                        cy={point.y}
+                        r="4"
+                        fill={series.color}
+                        stroke="#0f172a"
+                        strokeWidth="2"
+                        onMouseEnter={() => setHoverInfo({ series, point })}
+                        onMouseLeave={() => setHoverInfo(null)}
+                      />
+                    ))
+                  )}
+                </svg>
+              )}
 
-                <div className="legend-item">
-                  <span className="legend-swatch" />
-                  <span>Fan and Water Spray Logs</span>
+              {hoverInfo && (
+                <div className="chart-tooltip">
+                  <div className="tooltip-row">
+                    <strong>{hoverInfo.series.label}</strong>
+                    <span>
+                      {formatValue(hoverInfo.point.value)} {hoverInfo.series.unit}
+                    </span>
+                  </div>
+                  <div className="tooltip-row">
+                    <span>Timestamp</span>
+                    <span>{new Date(hoverInfo.point.reading.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="tooltip-row">
+                    <span>Status</span>
+                    <span>
+                      {formatStatus(hoverInfo.point.reading[`${hoverInfo.series.id}Status`] || null)}
+                    </span>
+                  </div>
                 </div>
+              )}
+            </div>
+
+            <div className="prediction-chart-footer">
+              <div className="reading-summary-panel">
+                <h4>Latest Data Snapshot</h4>
+                {latestReading ? (
+                  <div className="reading-row">
+                    {SENSOR_SERIES.map((series) => (
+                      <div key={series.id}>
+                        <strong>{series.label}:</strong>
+                        <p>
+                          {formatValue(latestReading[series.field])} {series.unit}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p>No readings are available for this batch yet.</p>
+                )}
+              </div>
+
+              <div className="chart-metrics-panel">
+                <h4>Chart Metrics</h4>
+                <ul>
+                  <li>{sensorHistory.length} stored readings</li>
+                  <li>{visibleSensors.length} active sensor series</li>
+                  <li>{historyLoading ? 'Loading history...' : `${chartData.history.length} trend points`}</li>
+                </ul>
               </div>
             </div>
           </div>

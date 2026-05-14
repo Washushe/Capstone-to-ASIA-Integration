@@ -173,6 +173,39 @@ button {
   gap: 18px;
 }
 
+.prediction-intro {
+  margin-top: 6px;
+  color: #cbd5e1;
+  max-width: 760px;
+  line-height: 1.7;
+}
+
+.form-group {
+  display: grid;
+  gap: 10px;
+  min-width: 220px;
+}
+
+.form-group label {
+  color: #cbd5e1;
+  font-size: 0.95rem;
+}
+
+.form-group input {
+  width: 100%;
+  min-width: 160px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.88);
+  color: #e2e8f0;
+  padding: 14px 16px;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.8);
+}
+
 .prediction-card,
 .prediction-summary {
   padding: 24px;
@@ -189,23 +222,8 @@ button {
 .prediction-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-}
-
-.sensor-toggle {
-  border: none;
-  border-radius: 16px;
-  padding: 12px 18px;
-  background: rgba(30, 41, 59, 0.9);
-  color: #cbd5e1;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.sensor-toggle.active,
-.sensor-toggle:hover {
-  background: rgba(59, 130, 246, 0.18);
-  color: #eff6ff;
+  align-items: flex-end;
+  gap: 16px;
 }
 
 .chart-frame {
@@ -214,30 +232,224 @@ button {
   background: rgba(30, 41, 59, 0.8);
   border-radius: 22px;
   border: 1px solid rgba(148, 163, 184, 0.08);
+  display: grid;
+  gap: 18px;
+}
+
+.chart-header-row,
+.prediction-chart-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.chart-header-row h3,
+.chart-header-row p,
+.reading-summary-panel h4,
+.chart-metrics-panel h4 {
+  margin: 0;
+}
+
+.confidence-pill {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #eff6ff;
+  font-weight: 600;
+}
+
+.legend-toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.series-toggle {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 16px;
+  padding: 10px 14px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.series-toggle.active {
+  background: rgba(59, 130, 246, 0.18);
+  color: #eff6ff;
+}
+
+.sensor-chart-wrapper {
+  position: relative;
 }
 
 .sensor-chart {
   width: 100%;
-  height: 320px;
+  height: auto;
+  min-height: 320px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.95);
 }
 
-.legend-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
+.chart-tooltip {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  max-width: 260px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.35);
+  color: #e2e8f0;
+  z-index: 2;
 }
 
-.legend-item {
+.chart-tooltip p {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.tooltip-row {
   display: flex;
-  align-items: center;
+  justify-content: space-between;
   gap: 10px;
+  margin-bottom: 8px;
+}
+
+.tooltip-row:last-child {
+  margin-bottom: 0;
+}
+
+.prediction-chart-footer {
+  flex-wrap: wrap;
+}
+
+.chart-metrics-panel,
+.reading-summary-panel {
+  flex: 1 1 320px;
+  min-width: 280px;
+  border-radius: 18px;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.chart-metrics-panel ul {
+  margin: 12px 0 0;
+  padding-left: 1.15rem;
   color: #cbd5e1;
 }
 
-.legend-swatch {
-  width: 14px;
-  height: 14px;
-  border-radius: 6px;
+.chart-metrics-panel li,
+.reading-summary-panel p {
+  margin: 8px 0;
+}
+
+.reading-row {
+  display: grid;
+  gap: 12px;
+}
+
+.reading-chip {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(30, 41, 59, 0.9);
+}
+
+.reading-chip span {
+  color: #94a3b8;
+}
+
+.reading-chip strong {
+  color: #eff6ff;
+}
+
+.prediction-markers {
+  display: grid;
+  gap: 12px;
+  color: #cbd5e1;
+}
+
+.marker-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.marker-list span {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.error-box {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.24);
+  color: #fecaca;
+}
+
+.prediction-result-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.prediction-result-row:last-child {
+  border-bottom: none;
+}
+
+.prediction-result-section {
+  margin-top: 18px;
+}
+
+.prediction-result-section h4 {
+  margin-bottom: 8px;
+}
+
+.prediction-result-loading {
+  display: grid;
+  gap: 12px;
+}
+
+.skeleton-line {
+  width: 100%;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.skeleton-line.short {
+  width: 65%;
+}
+
+.prediction-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+.skeleton-bar {
+  height: 22px;
+  width: 100%;
+  border-radius: 14px;
+  background: rgba(148, 163, 184, 0.16);
 }
 
 .prediction-summary h3 {
@@ -585,6 +797,38 @@ button {
   overflow-x: auto;
 }
 
+.logs-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.logs-filter,
+.logs-search {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 180px;
+}
+
+.logs-filter label,
+.logs-search label {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.logs-filter select,
+.logs-search input {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.96);
+  color: #e2e8f0;
+}
+
 .logs-table {
   width: 100%;
   border-collapse: collapse;
@@ -592,6 +836,12 @@ button {
   border: 1px solid rgba(148, 163, 184, 0.12);
   border-radius: 20px;
   overflow: hidden;
+}
+
+.status-normal,
+.card-status.normal {
+  background: rgba(16, 185, 129, 0.12);
+  color: #a7f3d0;
 }
 
 .logs-table th,
@@ -816,6 +1066,70 @@ button {
   background: rgba(15, 23, 42, 0.95);
   border: 1px solid rgba(148, 163, 184, 0.12);
   align-self: start;
+}
+
+.session-warning-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.session-warning-card {
+  background: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 24px;
+  padding: 32px;
+  width: min(520px, 100%);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.35);
+}
+
+.session-warning-card h3 {
+  margin: 0 0 12px;
+  color: #f8fafc;
+  font-size: 1.45rem;
+}
+
+.session-warning-card p {
+  margin: 0 0 24px;
+  color: #cbd5e1;
+  line-height: 1.7;
+}
+
+.session-warning-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.button-secondary {
+  background: rgba(59, 130, 246, 0.14);
+  color: #e2e8f0;
+}
+
+.button-secondary:hover {
+  background: rgba(59, 130, 246, 0.28);
+}
+
+.button-danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.button-danger:hover {
+  background: #dc2626;
 }
 
 .settings-inner-sidebar button {

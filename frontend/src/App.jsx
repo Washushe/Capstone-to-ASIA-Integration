@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useState } from 'react';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard.jsx';
 import Prediction from './pages/Prediction.jsx';
 import Logs from './pages/Logs.jsx';
 import Settings from './pages/Settings.jsx';
+import useInactivityTimeout from './hooks/useInactivityTimeout.jsx';
+import SessionTimeoutModal from './components/SessionTimeoutModal.jsx';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -25,8 +27,16 @@ function App() {
     localStorage.removeItem('compostUser');
   };
 
+  const { showWarning, resetTimer } = useInactivityTimeout(handleLogout, !!user);
+
   return (
-    <BrowserRouter>
+    <>
+      <SessionTimeoutModal
+        open={showWarning}
+        onStayLoggedIn={resetTimer}
+        onLogout={handleLogout}
+      />
+
       <Routes>
         <Route
           path="/"
@@ -96,8 +106,7 @@ function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
-  );
+    </>);
 }
 
 export default App;

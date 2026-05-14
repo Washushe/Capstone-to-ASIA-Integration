@@ -93,7 +93,7 @@ function ActuatorSection() {
   }
 
   const { moistureLevel, gasLevel, temperatureC } = latestReading;
-  const fanActive = gasLevel > GAS_HIGH_THRESHOLD || temperatureC > 35;
+  const fanActive = gasLevel > thresholds.gasMax || temperatureC > 35;
   const waterActive = moistureLevel < thresholds.moistureMin;
 
   return (

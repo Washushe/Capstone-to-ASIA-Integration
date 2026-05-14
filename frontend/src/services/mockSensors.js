@@ -31,6 +31,7 @@ export const mockSensors = [
   },
 ];
 
+const GAS_LOW_THRESHOLD = 800;
 const GAS_HIGH_THRESHOLD = 1200;
 
 const defaultThresholds = {
@@ -57,6 +58,90 @@ function getActuatorState(lastReading, thresholds) {
   };
 }
 
+export function getSensorStatus(sensorId, value, thresholds = null) {
+  const currentThresholds = thresholds || getThresholds();
+
+  switch (sensorId) {
+    case 'moisture':
+      if (value < currentThresholds.moistureMin) return 'LOW';
+      if (value > 70) return 'HIGH';
+      return 'OPTIMAL';
+    case 'gas':
+      if (value < GAS_LOW_THRESHOLD) return 'LOW';
+      if (value > currentThresholds.gasMax) return 'HIGH';
+      return 'OPTIMAL';
+    case 'temperature':
+      if (value < 25) return 'LOW';
+      if (value > 35) return 'HIGH';
+      return 'OPTIMAL';
+    case 'humidity':
+      if (value < 45) return 'LOW';
+      if (value > 75) return 'HIGH';
+      return 'OPTIMAL';
+    default:
+      return 'OPTIMAL';
+  }
+}
+
+function simulateSensorValue(sensorId, lastValue, fanActive, pumpActive, thresholds) {
+  const noise = (Math.random() - 0.5) * 2;
+  const abnormalSpike = Math.random() < 0.12;
+
+  switch (sensorId) {
+    case 'gas': {
+      const sourceValue = lastValue;
+      if (sourceValue > thresholds.gasMax) {
+        return sourceValue - (4 + Math.random() * 5) + noise + (abnormalSpike ? -10 : 0);
+      }
+      if (sourceValue < GAS_LOW_THRESHOLD) {
+        return sourceValue + (5 + Math.random() * 6) + noise + (abnormalSpike ? 10 : 0);
+      }
+      const drift = (Math.random() - 0.5) * 20;
+      const bounce = abnormalSpike ? (Math.random() < 0.5 ? -35 : 35) : 0;
+      return sourceValue + drift + bounce + (fanActive ? -2 : 0);
+    }
+
+    case 'temperature': {
+      const sourceValue = lastValue;
+      if (sourceValue > 35) {
+        return sourceValue - (1 + Math.random() * 1.5) + noise;
+      }
+      if (sourceValue < 25) {
+        return sourceValue + (0.8 + Math.random() * 1.2) + noise;
+      }
+      const drift = (Math.random() - 0.5) * 1.8;
+      return sourceValue + drift + (abnormalSpike ? (Math.random() < 0.5 ? -2.5 : 2.5) : 0);
+    }
+
+    case 'moisture': {
+      const sourceValue = lastValue;
+      if (sourceValue < thresholds.moistureMin) {
+        return sourceValue + (3 + Math.random() * 3) + noise + (pumpActive ? 1.5 : 0);
+      }
+      if (sourceValue > 75) {
+        return sourceValue - (1.5 + Math.random() * 3) + noise;
+      }
+      const drift = (Math.random() - 0.5) * 6;
+      return sourceValue + drift + (abnormalSpike ? (Math.random() < 0.5 ? -10 : 10) : 0);
+    }
+
+    case 'humidity': {
+      const sourceValue = lastValue;
+      if (sourceValue < 45) {
+        return sourceValue + (1 + Math.random() * 2.5) + noise;
+      }
+      if (sourceValue > 75) {
+        return sourceValue - (1 + Math.random() * 2.5) + noise;
+      }
+      const drift = (Math.random() - 0.5) * 2;
+      return sourceValue + drift + (abnormalSpike ? (Math.random() < 0.5 ? -4 : 4) : 0);
+    }
+
+    default:
+      return lastValue + noise;
+  }
+}
+
 export function getCurrentSensorData(lastReading = null, thresholds = null) {
   const thresholdSettings = thresholds || getThresholds();
   const previousReadings = Array.isArray(lastReading) ? lastReading : [];
@@ -65,73 +150,26 @@ export function getCurrentSensorData(lastReading = null, thresholds = null) {
   return mockSensors.map((sensor) => {
     const lastSensor = previousReadings.find((entry) => entry.id === sensor.id);
     const baseValue = lastSensor ? lastSensor.value : sensor.value;
-    const noise = (Math.random() - 0.5) * 2;
-    let value = baseValue;
-
-    if (sensor.id === 'gas') {
-      if (lastSensor && actuatorState.fanActive && lastSensor.value > thresholdSettings.gasMax) {
-        // Reduce to optimal range when fan is active
-        value = thresholdSettings.gasMax - 50 + ((Math.random() - 0.5) * 20);
-      } else if (lastSensor && lastSensor.value > thresholdSettings.gasMax) {
-        // Continue decreasing when high
-        value = lastSensor.value - (30 + Math.random() * 10) + noise;
-      } else if (lastSensor && lastSensor.value < 800) {
-        // Increase when low
-        value = lastSensor.value + (Math.random() * 50) + noise;
-      } else {
-        // Normal fluctuation in optimal range
-        value = baseValue + (Math.random() - 0.5) * 100 + noise;
-      }
-    } else if (sensor.id === 'temperature') {
-      // Keep temperature in optimal range (25-35°C)
-      if (lastSensor && actuatorState.fanActive && lastSensor.value > 35) {
-        value = lastSensor.value - (1.5 + Math.random() * 1.5) + noise;
-      } else if (lastSensor && lastSensor.value > 35) {
-        value = lastSensor.value - (0.7 + Math.random() * 0.8) + noise;
-      } else if (lastSensor && lastSensor.value < 25) {
-        value = lastSensor.value + (Math.random() * 2) + noise;
-      } else {
-        value = baseValue + noise;
-      }
-    } else if (sensor.id === 'moisture') {
-      if (lastSensor && actuatorState.pumpActive && lastSensor.value < thresholdSettings.moistureMin) {
-        // Increase to optimal range when pump is active
-        value = thresholdSettings.moistureMin + 10 + ((Math.random() - 0.5) * 5);
-      } else if (lastSensor && lastSensor.value < thresholdSettings.moistureMin) {
-        // Continue increasing when low
-        value = lastSensor.value + (3 + Math.random() * 2) + noise;
-      } else if (lastSensor && lastSensor.value > 75) {
-        // Decrease when high
-        value = lastSensor.value - (Math.random() * 5) + noise;
-      } else {
-        // Normal fluctuation in optimal range
-        value = baseValue + (Math.random() - 0.5) * 10 + noise;
-      }
-    } else if (sensor.id === 'humidity') {
-      // Keep humidity in optimal range (45-75%)
-      if (lastSensor && actuatorState.fanActive) {
-        value = lastSensor.value - (0.5 + Math.random() * 1) + noise;
-      } else if (lastSensor && lastSensor.value > 75) {
-        value = lastSensor.value - (Math.random() * 2) + noise;
-      } else if (lastSensor && lastSensor.value < 45) {
-        value = lastSensor.value + (Math.random() * 2) + noise;
-      } else {
-        value = baseValue + noise;
-      }
-    } else {
-      value = baseValue + noise;
-    }
+    let value = simulateSensorValue(
+      sensor.id,
+      baseValue,
+      actuatorState.fanActive,
+      actuatorState.pumpActive,
+      thresholdSettings
+    );
 
     value = clamp(value, sensor.optimalRange.min - 20, sensor.optimalRange.max + 60);
     value = Number(value.toFixed(1));
 
-    const isGasActive = sensor.id === 'gas' && value > thresholdSettings.gasMax;
-    const isTemperatureActive = sensor.id === 'temperature' && value > 35;
-    const isMoistureActive = sensor.id === 'moisture' && value < thresholdSettings.moistureMin;
+    const status = getSensorStatus(sensor.id, value, thresholdSettings);
+    const isGasActive = sensor.id === 'gas' && status === 'HIGH';
+    const isTemperatureActive = sensor.id === 'temperature' && status === 'HIGH';
+    const isMoistureActive = sensor.id === 'moisture' && status === 'LOW';
 
     return {
       ...sensor,
       value,
+      status,
       actuatorActive: isGasActive || isTemperatureActive || isMoistureActive,
       actuatorName:
         isGasActive || isTemperatureActive ? 'Fan' : isMoistureActive ? 'Water Pump' : null,

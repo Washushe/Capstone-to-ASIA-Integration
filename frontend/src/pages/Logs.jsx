@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout.jsx';
 import { getSensorReadings } from '../services/api.js';
 
 function Logs({ user, online, setOnline }) {
   const [sensorReadings, setSensorReadings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     async function loadSensorReadings() {
       try {
         const readings = await getSensorReadings();
-        // Sort by timestamp descending (newest first) and take latest 50
         const sortedReadings = readings
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
           .slice(0, 50);
@@ -25,6 +26,34 @@ function Logs({ user, online, setOnline }) {
     loadSensorReadings();
   }, []);
 
+  const filteredReadings = useMemo(() => {
+    return sensorReadings.filter((reading) => {
+      const statusMatch =
+        statusFilter === 'ALL' ||
+        reading.moistureStatus === statusFilter ||
+        reading.gasStatus === statusFilter;
+      if (!statusMatch) return false;
+
+      const normalizedSearch = searchTerm.trim().toLowerCase();
+      if (!normalizedSearch) return true;
+
+      const timestamp = new Date(reading.createdAt).toLocaleString().toLowerCase();
+      return (
+        timestamp.includes(normalizedSearch) ||
+        `${reading.temperatureC?.toFixed(1)}`.includes(normalizedSearch) ||
+        `${reading.moistureLevel?.toFixed(1)}`.includes(normalizedSearch) ||
+        `${reading.gasLevel?.toFixed(1)}`.includes(normalizedSearch) ||
+        `${reading.humidityLevel?.toFixed(1)}`.includes(normalizedSearch)
+      );
+    });
+  }, [sensorReadings, statusFilter, searchTerm]);
+
+  const formatStatus = (status) => {
+    if (!status) return 'Unknown';
+    if (status === 'NORMAL') return 'Optimal';
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  };
+
   return (
     <Layout
       user={user}
@@ -34,6 +63,32 @@ function Logs({ user, online, setOnline }) {
       setOnline={setOnline}
     >
       <div className="logs-panel">
+        <div className="logs-toolbar">
+          <div className="logs-filter">
+            <label htmlFor="statusFilter">Status filter</label>
+            <select
+              id="statusFilter"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+            >
+              <option value="ALL">All</option>
+              <option value="LOW">Low</option>
+              <option value="NORMAL">Optimal</option>
+              <option value="HIGH">High</option>
+            </select>
+          </div>
+          <div className="logs-search">
+            <label htmlFor="searchTerm">Search</label>
+            <input
+              id="searchTerm"
+              type="text"
+              placeholder="Search timestamp or value"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+          </div>
+        </div>
+
         <table className="logs-table">
           <thead>
             <tr>
@@ -44,6 +99,8 @@ function Logs({ user, online, setOnline }) {
               <th>Humidity (%)</th>
               <th>Moisture Status</th>
               <th>Gas Status</th>
+              <th>Temperature Status</th>
+              <th>Humidity Status</th>
             </tr>
           </thead>
           <tbody>
@@ -53,14 +110,14 @@ function Logs({ user, online, setOnline }) {
                   Loading sensor readings...
                 </td>
               </tr>
-            ) : sensorReadings.length === 0 ? (
+            ) : filteredReadings.length === 0 ? (
               <tr>
                 <td colSpan="7" className="empty-state">
-                  No sensor readings available yet.
+                  No sensor readings match the selected filter.
                 </td>
               </tr>
             ) : (
-              sensorReadings.map((reading) => (
+              filteredReadings.map((reading) => (
                 <tr key={reading.readingId}>
                   <td>{new Date(reading.createdAt).toLocaleString()}</td>
                   <td>{reading.temperatureC?.toFixed(1) || '--'}</td>
@@ -68,10 +125,16 @@ function Logs({ user, online, setOnline }) {
                   <td>{reading.gasLevel?.toFixed(1) || '--'}</td>
                   <td>{reading.humidityLevel?.toFixed(1) || '--'}</td>
                   <td className={`status-${reading.moistureStatus?.toLowerCase() || 'unknown'}`}>
-                    {reading.moistureStatus || 'Unknown'}
+                    {formatStatus(reading.moistureStatus)}
                   </td>
                   <td className={`status-${reading.gasStatus?.toLowerCase() || 'unknown'}`}>
-                    {reading.gasStatus || 'Unknown'}
+                    {formatStatus(reading.gasStatus)}
+                  </td>
+                  <td className={`status-${reading.temperatureStatus?.toLowerCase() || 'unknown'}`}>
+                    {formatStatus(reading.temperatureStatus)}
+                  </td>
+                  <td className={`status-${reading.humidityStatus?.toLowerCase() || 'unknown'}`}>
+                    {formatStatus(reading.humidityStatus)}
                   </td>
                 </tr>
               ))

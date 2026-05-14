@@ -1,141 +1,198 @@
 ﻿import { useMemo, useRef, useState, useEffect } from 'react';
 import Layout from '../components/Layout.jsx';
-import { getThresholdSettings, saveSensorReading, getSensorSimulation, getActuatorStatus, getLatestSensorReading } from '../services/api.js';
-import { getCurrentSensorData, getThresholds } from '../services/mockSensors.js';
+import { getThresholdSettings, getSensorSimulation, getActuatorStatus, getLatestSensorReading } from '../services/api.js';
+import { getCurrentSensorData } from '../services/mockSensors.js';
 
 const GAS_HIGH_THRESHOLD = 1200;
+const DASHBOARD_SENSORS_KEY = 'dashboardSensors';
+const DASHBOARD_THRESHOLDS_KEY = 'dashboardThresholds';
+
+const loadStoredSensors = () => {
+  try {
+    const saved = localStorage.getItem(DASHBOARD_SENSORS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+};
+
+const loadStoredThresholds = () => {
+  try {
+    const saved = localStorage.getItem(DASHBOARD_THRESHOLDS_KEY);
+    return saved
+      ? JSON.parse(saved)
+      : { moistureMin: 50, gasMax: GAS_HIGH_THRESHOLD };
+  } catch {
+    return { moistureMin: 50, gasMax: GAS_HIGH_THRESHOLD };
+  }
+};
+
+const buildSensorCards = (reading, settings) => [
+  {
+    id: 'temperature',
+    name: 'Temperature',
+    value: reading.temperatureC,
+    unit: '°C',
+    actuatorActive: reading.temperatureC > 35,
+    actuatorName: reading.temperatureC > 35 ? 'Fan' : null,
+  },
+  {
+    id: 'moisture',
+    name: 'Moisture',
+    value: reading.moistureLevel,
+    unit: '%',
+    actuatorActive: reading.moistureLevel < settings.moistureMin,
+    actuatorName: reading.moistureLevel < settings.moistureMin ? 'Water Pump' : null,
+  },
+  {
+    id: 'gas',
+    name: 'Gas Concentration',
+    value: reading.gasLevel,
+    unit: 'PPM',
+    actuatorActive: reading.gasLevel > settings.gasMax,
+    actuatorName: reading.gasLevel > settings.gasMax ? 'Fan' : null,
+  },
+  {
+    id: 'humidity',
+    name: 'Humidity',
+    value: reading.humidityLevel,
+    unit: '%',
+    actuatorActive: false,
+    actuatorName: null,
+  },
+];
 
 function Dashboard({ user, online }) {
-  const [sensors, setSensors] = useState([]);
-  const sensorsRef = useRef([]);
-  const [thresholds, setThresholds] = useState({ moistureMin: 50, gasMax: GAS_HIGH_THRESHOLD });
+  const [sensors, setSensors] = useState(() => loadStoredSensors());
+  const [thresholds, setThresholds] = useState(() => loadStoredThresholds());
+  const sensorsRef = useRef(sensors);
   const thresholdsRef = useRef(thresholds);
 
   useEffect(() => {
-    thresholdsRef.current = thresholds;
-  }, [thresholds]);
+    sensorsRef.current = sensors;
+    localStorage.setItem(DASHBOARD_SENSORS_KEY, JSON.stringify(sensors));
+  }, [sensors]);
 
   useEffect(() => {
-    sensorsRef.current = sensors;
-  }, [sensors]);
+    thresholdsRef.current = thresholds;
+    localStorage.setItem(DASHBOARD_THRESHOLDS_KEY, JSON.stringify(thresholds));
+  }, [thresholds]);
 
   useEffect(() => {
     let active = true;
 
-    async function loadData() {
+    const loadData = async () => {
       let settings = { moistureMin: 50, gasMax: GAS_HIGH_THRESHOLD };
+
       try {
         const apiSettings = await getThresholdSettings();
         settings = {
           moistureMin: apiSettings.moistureMin ?? 50,
           gasMax: apiSettings.gasMax ?? GAS_HIGH_THRESHOLD,
         };
+
         if (active) {
           setThresholds(settings);
         }
       } catch {
-        // Keep default thresholds if backend is unavailable
+        // Keep the last known thresholds when backend cannot be reached.
       }
 
       try {
         const latestReading = await getLatestSensorReading();
+
         if (latestReading && latestReading.temperatureC != null) {
-          const sensorData = [
-            {
-              id: 'temperature',
-              name: 'Temperature',
-              value: latestReading.temperatureC,
-              unit: '°C',
-              actuatorActive: latestReading.temperatureC > 35,
-              actuatorName: latestReading.temperatureC > 35 ? 'Fan' : null,
-            },
-            {
-              id: 'moisture',
-              name: 'Moisture',
-              value: latestReading.moistureLevel,
-              unit: '%',
-              actuatorActive: latestReading.moistureLevel < settings.moistureMin,
-              actuatorName: latestReading.moistureLevel < settings.moistureMin ? 'Water Pump' : null,
-            },
-            {
-              id: 'gas',
-              name: 'Gas Concentration',
-              value: latestReading.gasLevel,
-              unit: 'PPM',
-              actuatorActive: latestReading.gasLevel > settings.gasMax,
-              actuatorName: latestReading.gasLevel > settings.gasMax ? 'Fan' : null,
-            },
-            {
-              id: 'humidity',
-              name: 'Humidity',
-              value: latestReading.humidityLevel,
-              unit: '%',
-              actuatorActive: false,
-              actuatorName: null,
-            },
-          ];
+          const sensorData = buildSensorCards(latestReading, settings);
 
           if (active) {
             setSensors(sensorData);
           }
-        } else {
-          const simulationResponse = await getSensorSimulation([], settings.moistureMin, GAS_HIGH_THRESHOLD);
-          const actuatorStatus = await getActuatorStatus();
-          const sensorData = simulationResponse.sensors.map(sensor => ({
-            ...sensor,
-            actuatorActive: sensor.id === 'gas' || sensor.id === 'temperature'
-              ? actuatorStatus.fanActive
-              : sensor.id === 'moisture'
-                ? actuatorStatus.waterPumpActive
-                : false,
-            actuatorName: sensor.id === 'gas' || sensor.id === 'temperature'
-              ? 'Fan'
-              : sensor.id === 'moisture'
-                ? 'Water Pump'
-                : null,
-          }));
+          return;
+        }
 
-          if (active) {
-            setSensors(sensorData);
-          }
+        const simulationResponse = await getSensorSimulation(
+          sensorsRef.current,
+          settings.moistureMin,
+          settings.gasMax
+        );
+        const actuatorStatus = await getActuatorStatus();
+
+        if (active) {
+          setSensors(
+            simulationResponse.sensors.map((sensor) => ({
+              ...sensor,
+              actuatorActive:
+                sensor.id === 'gas' || sensor.id === 'temperature'
+                  ? actuatorStatus.fanActive
+                  : sensor.id === 'moisture'
+                  ? actuatorStatus.waterPumpActive
+                  : false,
+              actuatorName:
+                sensor.id === 'gas' || sensor.id === 'temperature'
+                  ? 'Fan'
+                  : sensor.id === 'moisture'
+                  ? 'Water Pump'
+                  : null,
+            }))
+          );
         }
       } catch (error) {
-        console.error('Failed to load sensor data from backend, using mock data:', error);
-        // Fallback to mock data when backend is not available
-        const mockSensorData = getCurrentSensorData([], { moistureMin: settings.moistureMin, gasMax: GAS_HIGH_THRESHOLD });
-        if (active) {
+        console.error('Failed to load sensor data from backend:', error);
+
+        if (!sensorsRef.current.length && active) {
+          const mockSensorData = getCurrentSensorData(sensorsRef.current, {
+            moistureMin: settings.moistureMin,
+            gasMax: settings.gasMax,
+          });
           setSensors(mockSensorData);
         }
       }
-    }
+    };
 
     loadData();
 
     const interval = setInterval(async () => {
       try {
-        const simulationResponse = await getSensorSimulation(sensorsRef.current, thresholdsRef.current.moistureMin, GAS_HIGH_THRESHOLD);
-        const actuatorStatus = await getActuatorStatus();
-        const updatedData = simulationResponse.sensors.map(sensor => ({
-          ...sensor,
-          actuatorActive: sensor.id === 'gas' || sensor.id === 'temperature'
-            ? actuatorStatus.fanActive
-            : sensor.id === 'moisture'
-              ? actuatorStatus.waterPumpActive
-              : false,
-          actuatorName: sensor.id === 'gas' || sensor.id === 'temperature'
-            ? 'Fan'
-            : sensor.id === 'moisture'
-              ? 'Water Pump'
-              : null,
-        }));
-        postSensorReading(updatedData);
-        setSensors(updatedData);
+        const latestReading = await getLatestSensorReading();
+
+        if (latestReading && latestReading.temperatureC != null) {
+          const updatedData = buildSensorCards(latestReading, thresholdsRef.current);
+          if (active) {
+            setSensors(updatedData);
+          }
+          return;
+        }
+
+        if (!sensorsRef.current.length) {
+          const simulationResponse = await getSensorSimulation(
+            sensorsRef.current,
+            thresholdsRef.current.moistureMin,
+            thresholdsRef.current.gasMax
+          );
+          const actuatorStatus = await getActuatorStatus();
+
+          if (active) {
+            setSensors(
+              simulationResponse.sensors.map((sensor) => ({
+                ...sensor,
+                actuatorActive:
+                  sensor.id === 'gas' || sensor.id === 'temperature'
+                    ? actuatorStatus.fanActive
+                    : sensor.id === 'moisture'
+                    ? actuatorStatus.waterPumpActive
+                    : false,
+                actuatorName:
+                  sensor.id === 'gas' || sensor.id === 'temperature'
+                    ? 'Fan'
+                    : sensor.id === 'moisture'
+                    ? 'Water Pump'
+                    : null,
+              }))
+            );
+          }
+        }
       } catch (error) {
-        console.error('Failed to simulate sensor reading from backend, using mock data:', error);
-        // Fallback to mock data when backend is not available
-        const mockSensorData = getCurrentSensorData(sensorsRef.current, { moistureMin: thresholdsRef.current.moistureMin, gasMax: GAS_HIGH_THRESHOLD });
-        setSensors(mockSensorData);
-        postSensorReading(mockSensorData);
+        console.error('Background polling failed for sensor data:', error);
       }
     }, 60000);
 
@@ -148,21 +205,6 @@ function Dashboard({ user, online }) {
   const systemStatus = useMemo(() => {
     return sensors.length > 0 ? 'Live sensor data is incoming' : 'Waiting for sensor data';
   }, [sensors]);
-
-  const postSensorReading = async (sensorData) => {
-    const values = Object.fromEntries(sensorData.map((sensor) => [sensor.id, sensor]));
-
-    try {
-      await saveSensorReading({
-        moistureLevel: values.moisture?.value ?? 0,
-        gasLevel: values.gas?.value ?? 0,
-        temperatureC: values.temperature?.value ?? 0,
-        humidityLevel: values.humidity?.value ?? 0,
-      });
-    } catch {
-      // Ignore backend failures for live sensor persistence
-    }
-  };
 
   const getStatus = (sensor) => {
     if (sensor.id === 'moisture') {
@@ -183,7 +225,7 @@ function Dashboard({ user, online }) {
     if (sensor.id === 'humidity') {
       if (sensor.value > 75) return 'High';
       if (sensor.value < 45) return 'Low';
-      return 'Normal';
+      return 'Optimal';
     }
     return 'Unknown';
   };
