@@ -2,12 +2,86 @@ import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout.jsx';
 import { getActuatorLogs, getSensorReadings } from '../services/api.js';
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50];
+
+function PaginationControls({
+  page,
+  pageSize,
+  totalItems,
+  totalPages,
+  onPageChange,
+  onPageSizeChange,
+}) {
+  const safePage = Math.min(page, totalPages);
+  const startItem = totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const endItem = Math.min(totalItems, safePage * pageSize);
+
+  return (
+    <div className="logs-pagination">
+      <div className="logs-page-summary">
+        Showing {startItem}-{endItem} of {totalItems}
+      </div>
+
+      <div className="logs-page-controls">
+        <label>
+          Rows
+          <select
+            value={pageSize}
+            onChange={(event) => onPageSizeChange(Number(event.target.value))}
+          >
+            {PAGE_SIZE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button
+          type="button"
+          onClick={() => onPageChange(1)}
+          disabled={safePage === 1}
+        >
+          First
+        </button>
+        <button
+          type="button"
+          onClick={() => onPageChange(safePage - 1)}
+          disabled={safePage === 1}
+        >
+          Previous
+        </button>
+        <span>
+          Page {safePage} of {totalPages}
+        </span>
+        <button
+          type="button"
+          onClick={() => onPageChange(safePage + 1)}
+          disabled={safePage === totalPages}
+        >
+          Next
+        </button>
+        <button
+          type="button"
+          onClick={() => onPageChange(totalPages)}
+          disabled={safePage === totalPages}
+        >
+          Last
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Logs({ user, online, setOnline }) {
   const [sensorReadings, setSensorReadings] = useState([]);
   const [actuatorLogs, setActuatorLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [sensorPage, setSensorPage] = useState(1);
+  const [actuatorPage, setActuatorPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     async function loadLogs() {
@@ -29,6 +103,11 @@ function Logs({ user, online, setOnline }) {
 
     loadLogs();
   }, []);
+
+  useEffect(() => {
+    setSensorPage(1);
+    setActuatorPage(1);
+  }, [statusFilter, searchTerm, pageSize]);
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
 
@@ -69,6 +148,21 @@ function Logs({ user, online, setOnline }) {
       );
     });
   }, [actuatorLogs, normalizedSearch]);
+
+  const sensorTotalPages = Math.max(1, Math.ceil(filteredReadings.length / pageSize));
+  const actuatorTotalPages = Math.max(1, Math.ceil(filteredActuatorLogs.length / pageSize));
+  const safeSensorPage = Math.min(sensorPage, sensorTotalPages);
+  const safeActuatorPage = Math.min(actuatorPage, actuatorTotalPages);
+
+  const pagedReadings = useMemo(() => {
+    const start = (safeSensorPage - 1) * pageSize;
+    return filteredReadings.slice(start, start + pageSize);
+  }, [filteredReadings, pageSize, safeSensorPage]);
+
+  const pagedActuatorLogs = useMemo(() => {
+    const start = (safeActuatorPage - 1) * pageSize;
+    return filteredActuatorLogs.slice(start, start + pageSize);
+  }, [filteredActuatorLogs, pageSize, safeActuatorPage]);
 
   const formatStatus = (status) => {
     if (!status) return 'Unknown';
@@ -150,7 +244,7 @@ function Logs({ user, online, setOnline }) {
                 </td>
               </tr>
             ) : (
-              filteredReadings.map((reading) => (
+              pagedReadings.map((reading) => (
                 <tr key={reading.readingId}>
                   <td>{formatDateTime(reading.createdAt)}</td>
                   <td>{formatNumber(reading.temperatureC)}</td>
@@ -174,6 +268,16 @@ function Logs({ user, online, setOnline }) {
             )}
           </tbody>
         </table>
+        {!loading && filteredReadings.length > 0 && (
+          <PaginationControls
+            page={safeSensorPage}
+            pageSize={pageSize}
+            totalItems={filteredReadings.length}
+            totalPages={sensorTotalPages}
+            onPageChange={setSensorPage}
+            onPageSizeChange={setPageSize}
+          />
+        )}
 
         <h3 className="logs-section-title">Actuator Log History</h3>
         <table className="logs-table">
@@ -204,7 +308,7 @@ function Logs({ user, online, setOnline }) {
                 </td>
               </tr>
             ) : (
-              filteredActuatorLogs.map((log) => (
+              pagedActuatorLogs.map((log) => (
                 <tr key={log.logId}>
                   <td>{formatDateTime(log.startedAt)}</td>
                   <td>{formatDateTime(log.endedAt)}</td>
@@ -220,6 +324,16 @@ function Logs({ user, online, setOnline }) {
             )}
           </tbody>
         </table>
+        {!loading && filteredActuatorLogs.length > 0 && (
+          <PaginationControls
+            page={safeActuatorPage}
+            pageSize={pageSize}
+            totalItems={filteredActuatorLogs.length}
+            totalPages={actuatorTotalPages}
+            onPageChange={setActuatorPage}
+            onPageSizeChange={setPageSize}
+          />
+        )}
       </div>
     </Layout>
   );

@@ -106,6 +106,10 @@ function Login({ onLogin }) {
               )}
             </label>
 
+            <div className="auth-inline-link">
+              <Link to="/forgot-password">Forgot Password?</Link>
+            </div>
+
             <button type="submit" className="primary-button" disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
             </button>

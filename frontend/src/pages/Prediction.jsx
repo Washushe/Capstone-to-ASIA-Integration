@@ -23,6 +23,24 @@ function formatValue(value) {
   return value === null || value === undefined ? '--' : value.toFixed(1);
 }
 
+function formatAxisValue(value) {
+  if (!Number.isFinite(value)) return '--';
+  return Math.abs(value) >= 100 ? Math.round(value).toString() : value.toFixed(1);
+}
+
+function formatAxisTime(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return { time: '--', date: '' };
+  }
+
+  return {
+    time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    date: date.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+  };
+}
+
 function Prediction({ user, online }) {
   const [batchId, setBatchId] = useState('');
   const [activeBatch, setActiveBatch] = useState(null);
@@ -83,11 +101,26 @@ function Prediction({ user, online }) {
     const chartMax = maxValue + range * 0.1;
 
     const width = 1120;
-    const height = 380;
-    const padding = 46;
+    const height = 420;
+    const padding = 76;
     const plotWidth = width - padding * 2;
     const plotHeight = height - padding * 2;
     const xStep = history.length > 1 ? plotWidth / (history.length - 1) : plotWidth;
+    const yTicks = Array.from({ length: 5 }).map((_, index) => {
+      const ratio = index / 4;
+      const value = chartMax - (chartMax - chartMin) * ratio;
+      const y = padding + plotHeight * ratio;
+      return { value, y };
+    });
+    const xTickCount = Math.min(5, history.length);
+    const xTicks = Array.from({ length: xTickCount }).map((_, index) => {
+      const readingIndex = xTickCount === 1
+        ? 0
+        : Math.round((index * (history.length - 1)) / (xTickCount - 1));
+      const reading = history[readingIndex];
+      const x = padding + readingIndex * xStep;
+      return { reading, x };
+    });
 
     const seriesLines = visibleSensors.map((series) => {
       const points = history
@@ -118,6 +151,8 @@ function Prediction({ user, online }) {
       plotWidth,
       plotHeight,
       xStep,
+      yTicks,
+      xTicks,
       seriesLines,
     };
   }, [sensorHistory, visibleSensors]);
@@ -242,18 +277,63 @@ function Prediction({ user, online }) {
                 <svg className="sensor-chart" viewBox={`0 0 ${chartData.width} ${chartData.height}`}>
                   <rect x="0" y="0" width="100%" height="100%" fill="transparent" />
 
-                  {Array.from({ length: 4 }).map((_, index) => {
-                    const y = chartData.padding + (chartData.plotHeight / 3) * index;
-                    return (
+                  <line
+                    x1={chartData.padding}
+                    x2={chartData.padding}
+                    y1={chartData.padding}
+                    y2={chartData.height - chartData.padding}
+                    className="chart-axis-line"
+                  />
+                  <line
+                    x1={chartData.padding}
+                    x2={chartData.width - chartData.padding}
+                    y1={chartData.height - chartData.padding}
+                    y2={chartData.height - chartData.padding}
+                    className="chart-axis-line"
+                  />
+
+                  {chartData.yTicks.map((tick) => (
+                    <g key={`y-${tick.value}`}>
                       <line
-                        key={index}
                         x1={chartData.padding}
                         x2={chartData.width - chartData.padding}
-                        y1={y}
-                        y2={y}
+                        y1={tick.y}
+                        y2={tick.y}
                         stroke="rgba(148, 163, 184, 0.12)"
                         strokeWidth="1"
                       />
+                      <text
+                        x={chartData.padding - 12}
+                        y={tick.y + 5}
+                        className="chart-axis-label"
+                        textAnchor="end"
+                      >
+                        {formatAxisValue(tick.value)}
+                      </text>
+                    </g>
+                  ))}
+
+                  {chartData.xTicks.map((tick, index) => {
+                    const label = formatAxisTime(tick.reading.createdAt);
+                    return (
+                      <g key={`${tick.reading.readingId || tick.reading.createdAt}-${index}`}>
+                        <line
+                          x1={tick.x}
+                          x2={tick.x}
+                          y1={chartData.height - chartData.padding}
+                          y2={chartData.height - chartData.padding + 8}
+                          className="chart-axis-line"
+                        />
+                        <text
+                          x={tick.x}
+                          y={chartData.height - chartData.padding + 26}
+                          className="chart-axis-label"
+                          textAnchor="middle"
+                        >
+                          <tspan x={tick.x}>{label.time}</tspan>
+                          <tspan x={tick.x} dy="18">{label.date}</tspan>
+                        </text>
+                      </g>
                     );
                   })}
 

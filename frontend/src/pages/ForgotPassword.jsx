@@ -1,0 +1,98 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { forgotPassword } from '../services/api.js';
+
+const authIntro = {
+  title: 'Build Your Skills With Compost Intelligence',
+  description:
+    'Monitor compost health and stay on top of environmental conditions with live sensor history, alerts, and actuator response simulation.',
+};
+
+function ForgotPassword() {
+  const [email, setEmail] = useState('');
+  const [errors, setErrors] = useState({});
+  const [message, setMessage] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const validate = () => {
+    const validation = {};
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      validation.email = 'Email is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      validation.email = 'Enter a valid email address.';
+    }
+
+    setErrors(validation);
+    return Object.keys(validation).length === 0;
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setMessage('');
+    setSubmitError('');
+
+    if (!validate()) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await forgotPassword(email);
+      setMessage(response.message || 'If the email is registered, a password reset link has been sent.');
+    } catch (err) {
+      setSubmitError(err.message || 'Unable to request password reset.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="auth-page">
+      <div className="auth-layout">
+        <aside className="auth-overview">
+          <div>
+            <h1 className="auth-main-title">IoT Compost Accelerator</h1>
+            <h2>{authIntro.title}</h2>
+            <p>{authIntro.description}</p>
+          </div>
+        </aside>
+
+        <div className="auth-card">
+          <h1>Reset your password</h1>
+          <p className="auth-subtitle">Enter your registered email address.</p>
+
+          {message && <p className="form-message success">{message}</p>}
+          {submitError && <p className="form-message error">{submitError}</p>}
+
+          <form onSubmit={handleSubmit} className="auth-form">
+            <label>
+              Email
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+              {errors.email && (
+                <span className="auth-field-error">{errors.email}</span>
+              )}
+            </label>
+
+            <button type="submit" className="primary-button" disabled={loading}>
+              {loading ? 'Sending...' : 'Send Reset Link'}
+            </button>
+          </form>
+
+          <div className="auth-footer auth-footer-right">
+            <Link to="/">Back to login</Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default ForgotPassword;

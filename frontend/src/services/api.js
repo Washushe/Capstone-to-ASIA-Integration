@@ -43,14 +43,22 @@ async function request(path, options = {}) {
   const storedSession = getStoredAuthSession();
   const token = storedSession?.sessionToken;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
+      ...options,
+    });
+  } catch {
+    throw new Error(
+      'Unable to connect to the backend server. Make sure Spring Boot is running on http://localhost:8080.'
+    );
+  }
 
   if (response.status === 204) {
     return null;
@@ -116,6 +124,26 @@ export async function logoutUser() {
   } finally {
     clearStoredAuthSession();
   }
+}
+
+export async function forgotPassword(email) {
+  return request('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: email.trim(),
+    }),
+  });
+}
+
+export async function resetPassword(token, newPassword, confirmPassword) {
+  return request('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({
+      token,
+      newPassword,
+      confirmPassword,
+    }),
+  });
 }
 
 // ==========================

@@ -36,6 +36,12 @@
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
 
+        <!-- Gmail SMTP email sending -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- JPA support, keep this if you are also using entities/repositories -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
