@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
@@ -8,7 +8,9 @@ import Dashboard from './pages/Dashboard.jsx';
 import Prediction from './pages/Prediction.jsx';
 import Logs from './pages/Logs.jsx';
 import Settings from './pages/Settings.jsx';
+import ErrorPage from './pages/ErrorPage.jsx';
 import useInactivityTimeout from './hooks/useInactivityTimeout.jsx';
+import AppErrorBoundary from './components/AppErrorBoundary.jsx';
 import SessionTimeoutModal from './components/SessionTimeoutModal.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
 import {
@@ -19,6 +21,7 @@ import {
 } from './services/api.js';
 
 function App() {
+  const location = useLocation();
   const [authSession, setAuthSession] = useState(() => getStoredAuthSession());
   const [checkingSession, setCheckingSession] = useState(true);
   const [online] = useState(true);
@@ -90,17 +93,18 @@ function App() {
       />
       <ToastContainer />
 
-      <Routes>
-        <Route
-          path="/"
-          element={
-            user ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <Login onLogin={handleLogin} />
-            )
-          }
-        />
+      <AppErrorBoundary resetKey={location.pathname} homePath={user ? '/dashboard' : '/'}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              user ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Login onLogin={handleLogin} />
+              )
+            }
+          />
 
         <Route
           path="/register"
@@ -167,8 +171,17 @@ function App() {
           }
         />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route
+            path="*"
+            element={
+              <ErrorPage
+                type="notFound"
+                homePath={user ? '/dashboard' : '/'}
+              />
+            }
+          />
+        </Routes>
+      </AppErrorBoundary>
     </>);
 }
 
