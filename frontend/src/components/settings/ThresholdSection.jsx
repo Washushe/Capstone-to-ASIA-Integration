@@ -14,8 +14,6 @@ const defaultThresholds = {
 
 function ThresholdSection() {
   const [thresholds, setThresholds] = useState(defaultThresholds);
-  const [statusMessage, setStatusMessage] = useState('');
-  const [statusType, setStatusType] = useState('');
   const [passwordPromptOpen, setPasswordPromptOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -48,8 +46,6 @@ function ThresholdSection() {
   };
 
   const handleSave = () => {
-    setStatusMessage('');
-    setStatusType('');
     setCurrentPassword('');
     setPasswordError('');
     setPasswordPromptOpen(true);
@@ -57,8 +53,6 @@ function ThresholdSection() {
 
   const confirmSave = async (event) => {
     event.preventDefault();
-    setStatusMessage('');
-    setStatusType('');
     setPasswordError('');
 
     if (!currentPassword) {
@@ -80,12 +74,11 @@ function ThresholdSection() {
 
       setThresholds(nextThresholds);
       saveLocalThresholds(nextThresholds);
-      setStatusMessage('Sensor and actuator settings have been saved.');
-      setStatusType('success');
+      window.showToast('Threshold settings updated successfully', 'success');
       setCurrentPassword('');
       setPasswordPromptOpen(false);
     } catch (error) {
-      setPasswordError(error.message || 'Unable to save threshold settings.');
+      window.showToast(error.message || 'Unable to save threshold settings.', 'error');
     } finally {
       setSaving(false);
     }
@@ -172,11 +165,6 @@ function ThresholdSection() {
         <button className="save-button" onClick={handleSave} disabled={saving}>
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
-        {statusMessage && (
-          <p className={`form-message ${statusType}`}>
-            {statusMessage}
-          </p>
-        )}
       </div>
 
       {passwordPromptOpen && (

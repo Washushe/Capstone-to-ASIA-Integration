@@ -13,16 +13,20 @@ public class EmailService {
     @Value("${spring.mail.username:}")
     private String fromEmail;
 
-    @Value("${spring.mail.password:}")
-    private String appPassword;
+    @Value("${app.notification.email:}")
+    private String notificationEmail;
 
     public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
 
     public void sendPasswordResetEmail(String toEmail, String resetLink) {
-        if (fromEmail == null || fromEmail.isBlank() || appPassword == null || appPassword.isBlank()) {
+        if (fromEmail == null || fromEmail.isBlank()) {
             throw new IllegalStateException("Gmail SMTP credentials are not configured.");
+        }
+
+        if (toEmail == null || toEmail.isBlank()) {
+            throw new IllegalArgumentException("Recipient email address cannot be empty.");
         }
 
         SimpleMailMessage message = new SimpleMailMessage();
@@ -39,6 +43,37 @@ public class EmailService {
 
                 This link expires soon and can be used only once. If you did not request this, you can ignore this email.
                 """.formatted(resetLink));
+
+        mailSender.send(message);
+    }
+
+    public void sendActuatorActivationEmail(String actuatorName, String activationStatus, String timestamp,
+                                           String sensorReadings) {
+        if (notificationEmail == null || notificationEmail.isBlank()) {
+            // No notification email configured, skip
+            return;
+        }
+
+        if (fromEmail == null || fromEmail.isBlank()) {
+            throw new IllegalStateException("Gmail SMTP credentials are not configured.");
+        }
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(notificationEmail);
+        message.setSubject("IoT Compost Accelerator - Actuator Activated");
+        message.setText("""
+                Actuator Activation Notification
+
+                Actuator: %s
+                Status: %s
+                Timestamp: %s
+
+                Sensor Readings at Activation:
+                %s
+
+                This is an automated notification from your IoT Compost Accelerator system.
+                """.formatted(actuatorName, activationStatus, timestamp, sensorReadings));
 
         mailSender.send(message);
     }

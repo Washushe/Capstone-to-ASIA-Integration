@@ -23,9 +23,11 @@ public class ActuatorLogService {
     private static final String STATUS_ON = "ON";
 
     private final JdbcTemplate jdbcTemplate;
+    private final EmailService emailService;
 
-    public ActuatorLogService(JdbcTemplate jdbcTemplate) {
+    public ActuatorLogService(JdbcTemplate jdbcTemplate, EmailService emailService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.emailService = emailService;
     }
 
     public List<ActuatorActionResponse> applyAutomaticControl(SensorReadingResponse reading,
@@ -169,6 +171,15 @@ public class ActuatorLogService {
                 durationSeconds
         );
 
+        // Send email notification
+        String sensorReadings = formatSensorReadings(reading);
+        emailService.sendActuatorActivationEmail(
+                actuatorType,
+                STATUS_ON,
+                now.toString(),
+                sensorReadings
+        );
+
         return new ActuatorActionResponse(
                 log != null ? log.getLogId() : null,
                 actuatorType,
@@ -190,10 +201,21 @@ public class ActuatorLogService {
                 .orElse(null);
     }
 
-    private boolean isActive(List<ActuatorRuntimeStatusResponse> runtimeStatuses, String actuatorType) {
-        return runtimeStatuses.stream()
-                .anyMatch(status -> actuatorType.equals(status.getActuatorType())
-                        && STATUS_ON.equals(status.getCurrentStatus()));
+    private String formatSensorReadings(SensorReadingResponse reading) {
+        StringBuilder sb = new StringBuilder();
+        if (reading.getMoistureLevel() != null) {
+            sb.append("Moisture: ").append(reading.getMoistureLevel()).append("%\n");
+        }
+        if (reading.getGasLevel() != null) {
+            sb.append("Gas: ").append(reading.getGasLevel()).append(" ppm\n");
+        }
+        if (reading.getTemperatureC() != null) {
+            sb.append("Temperature: ").append(reading.getTemperatureC()).append("°C\n");
+        }
+        if (reading.getHumidityLevel() != null) {
+            sb.append("Humidity: ").append(reading.getHumidityLevel()).append("%\n");
+        }
+        return sb.toString().trim();
     }
 
     private ActuatorLogResponse getLatestActivity() {
@@ -247,5 +269,11 @@ public class ActuatorLogService {
 
     private int valueOrDefault(Integer value, int fallback) {
         return value != null ? value : fallback;
+    }
+
+    private boolean isActive(List<ActuatorRuntimeStatusResponse> runtimeStatuses, String actuatorType) {
+        return runtimeStatuses.stream()
+                .filter(status -> actuatorType.equals(status.getActuatorType()))
+                .anyMatch(status -> STATUS_ON.equals(status.getCurrentStatus()));
     }
 }

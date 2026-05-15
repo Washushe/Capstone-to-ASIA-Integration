@@ -10,6 +10,7 @@ import Logs from './pages/Logs.jsx';
 import Settings from './pages/Settings.jsx';
 import useInactivityTimeout from './hooks/useInactivityTimeout.jsx';
 import SessionTimeoutModal from './components/SessionTimeoutModal.jsx';
+import ToastContainer from './components/ToastContainer.jsx';
 import {
   clearStoredAuthSession,
   getStoredAuthSession,
@@ -87,6 +88,7 @@ function App() {
         onStayLoggedIn={handleStayLoggedIn}
         onLogout={handleLogout}
       />
+      <ToastContainer />
 
       <Routes>
         <Route
