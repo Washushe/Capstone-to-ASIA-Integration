@@ -47,6 +47,31 @@ public class EmailService {
         mailSender.send(message);
     }
 
+    public void sendRegistrationOtpEmail(String toEmail, String otp, long expirationMinutes) {
+        if (fromEmail == null || fromEmail.isBlank()) {
+            throw new IllegalStateException("Gmail SMTP credentials are not configured.");
+        }
+
+        if (toEmail == null || toEmail.isBlank()) {
+            throw new IllegalArgumentException("Recipient email address cannot be empty.");
+        }
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(toEmail);
+        message.setSubject("Your IoT Compost Accelerator OTP");
+        message.setText("""
+                Hello,
+
+                Your OTP for creating an IoT Compost Accelerator account is:
+                %s
+
+                This code expires in %d minutes. If you did not request this, you can ignore this email.
+                """.formatted(otp, expirationMinutes));
+
+        mailSender.send(message);
+    }
+
     public void sendActuatorActivationEmail(String actuatorName, String activationStatus, String timestamp,
                                            String sensorReadings) {
         if (notificationEmail == null || notificationEmail.isBlank()) {

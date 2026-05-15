@@ -22,7 +22,7 @@ import java.util.Base64;
 public class PasswordResetService {
 
     public static final String FORGOT_PASSWORD_MESSAGE =
-            "If the email is registered, a password reset link has been sent.";
+            "Email has been sent.";
     public static final String RESET_SUCCESS_MESSAGE =
             "Password reset successful. You may now log in.";
 

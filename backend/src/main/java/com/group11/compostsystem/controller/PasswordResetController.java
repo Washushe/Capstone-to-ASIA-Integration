@@ -55,8 +55,8 @@ public class PasswordResetController {
             );
         } catch (RuntimeException e) {
             LOGGER.warn("Password reset request could not send the reset email.", e);
-            return ResponseEntity.ok(
-                    new ApiResponse(true, PasswordResetService.FORGOT_PASSWORD_MESSAGE)
+            return ResponseEntity.badRequest().body(
+                    new ApiResponse(false, "Unable to send reset email. Check the backend email configuration.")
             );
         }
     }

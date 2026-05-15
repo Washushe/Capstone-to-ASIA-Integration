@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { resetPassword } from '../services/api.js';
+import { sanitizeInput } from '../utils/sanitize.js';
+import NotificationModal from '../components/NotificationModal.jsx';
 
 const authIntro = {
   title: 'Build Your Skills With Compost Intelligence',
@@ -17,9 +19,9 @@ function ResetPassword() {
     confirmPassword: '',
   });
   const [errors, setErrors] = useState({});
-  const [message, setMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState({ isOpen: false, message: '', type: 'success' });
 
   const validate = () => {
     const validation = {};
@@ -44,7 +46,6 @@ function ResetPassword() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setMessage('');
     setSubmitError('');
 
     if (!validate()) {
@@ -54,8 +55,12 @@ function ResetPassword() {
     setLoading(true);
 
     try {
-      const response = await resetPassword(token, form.newPassword, form.confirmPassword);
-      setMessage(response.message || 'Password reset successful. You may now log in.');
+      await resetPassword(token, form.newPassword, form.confirmPassword);
+      setNotification({
+        isOpen: true,
+        message: 'Password has been reset.',
+        type: 'success',
+      });
       setForm({
         newPassword: '',
         confirmPassword: '',
@@ -82,7 +87,6 @@ function ResetPassword() {
           <h1>Create new password</h1>
           <p className="auth-subtitle">Choose a new password for your account.</p>
 
-          {message && <p className="form-message success">{message}</p>}
           {submitError && <p className="form-message error">{submitError}</p>}
           {errors.token && <p className="form-message error">{errors.token}</p>}
 
@@ -92,8 +96,10 @@ function ResetPassword() {
               <input
                 type="password"
                 value={form.newPassword}
+                onPaste={(event) => event.preventDefault()}
+                onDrop={(event) => event.preventDefault()}
                 onChange={(event) =>
-                  setForm({ ...form, newPassword: event.target.value })
+                  setForm({ ...form, newPassword: sanitizeInput(event.target.value) })
                 }
               />
               {errors.newPassword && (
@@ -106,8 +112,10 @@ function ResetPassword() {
               <input
                 type="password"
                 value={form.confirmPassword}
+                onPaste={(event) => event.preventDefault()}
+                onDrop={(event) => event.preventDefault()}
                 onChange={(event) =>
-                  setForm({ ...form, confirmPassword: event.target.value })
+                  setForm({ ...form, confirmPassword: sanitizeInput(event.target.value) })
                 }
               />
               {errors.confirmPassword && (
@@ -125,6 +133,14 @@ function ResetPassword() {
           </div>
         </div>
       </div>
+
+      <NotificationModal
+        isOpen={notification.isOpen}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ ...notification, isOpen: false })}
+      />
     </div>
   );
 }

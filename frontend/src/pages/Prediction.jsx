@@ -217,11 +217,12 @@ function Prediction({ user, online }) {
 
             <button
               type="button"
-              className="primary-button"
+              className="primary-button prediction-generate-button"
               onClick={handleGeneratePrediction}
               disabled={loading}
             >
-              {loading ? 'Generating AI Prediction...' : 'Generate Prediction'}
+              {loading && <span className="button-spinner" aria-hidden="true" />}
+              <span>{loading ? 'Generating AI Prediction...' : 'Generate Prediction'}</span>
             </button>
           </div>
 
@@ -416,10 +417,16 @@ function Prediction({ user, online }) {
             )}
 
             {loading && (
-              <p>
-                Please wait while the system analyzes the compost batch data using
-                the AI prediction service.
-              </p>
+              <div className="prediction-loading-state" role="status" aria-live="polite">
+                <span className="prediction-loading-spinner" aria-hidden="true" />
+                <div>
+                  <h4>Generating prediction</h4>
+                  <p>
+                    Please wait while the system analyzes the compost batch data using
+                    the AI prediction service.
+                  </p>
+                </div>
+              </div>
             )}
 
             {predictionError && (

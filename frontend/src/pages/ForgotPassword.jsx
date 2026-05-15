@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { forgotPassword } from '../services/api.js';
+import { sanitizeInput } from '../utils/sanitize.js';
+import NotificationModal from '../components/NotificationModal.jsx';
 
 const authIntro = {
   title: 'Build Your Skills With Compost Intelligence',
@@ -11,9 +13,9 @@ const authIntro = {
 function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState({});
-  const [message, setMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState({ isOpen: false, message: '', type: 'success' });
 
   const validate = () => {
     const validation = {};
@@ -31,7 +33,6 @@ function ForgotPassword() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setMessage('');
     setSubmitError('');
 
     if (!validate()) {
@@ -41,8 +42,13 @@ function ForgotPassword() {
     setLoading(true);
 
     try {
-      const response = await forgotPassword(email);
-      setMessage(response.message || 'If the email is registered, a password reset link has been sent.');
+      await forgotPassword(email);
+      setNotification({
+        isOpen: true,
+        message: 'Email has been sent.',
+        type: 'success',
+      });
+      setEmail('');
     } catch (err) {
       setSubmitError(err.message || 'Unable to request password reset.');
     } finally {
@@ -65,7 +71,6 @@ function ForgotPassword() {
           <h1>Reset your password</h1>
           <p className="auth-subtitle">Enter your registered email address.</p>
 
-          {message && <p className="form-message success">{message}</p>}
           {submitError && <p className="form-message error">{submitError}</p>}
 
           <form onSubmit={handleSubmit} className="auth-form">
@@ -74,7 +79,7 @@ function ForgotPassword() {
               <input
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => setEmail(sanitizeInput(event.target.value))}
               />
               {errors.email && (
                 <span className="auth-field-error">{errors.email}</span>
@@ -91,6 +96,14 @@ function ForgotPassword() {
           </div>
         </div>
       </div>
+
+      <NotificationModal
+        isOpen={notification.isOpen}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ ...notification, isOpen: false })}
+      />
     </div>
   );
 }

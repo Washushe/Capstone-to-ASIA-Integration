@@ -302,134 +302,126 @@ function ActiveCompostBatchSection() {
         </div>
       )}
 
-      <form className="batch-form" onSubmit={isCreating ? handleCreateBatch : handleRequestUpdate}>
-        <div className="batch-form-header">
-          <h4>
-            {isCreating
-              ? 'Create Compost Batch'
-              : isEditing
-                ? 'Edit Active Compost Batch'
-                : 'Batch Information'}
-          </h4>
-          <p>
-            {formEditable
-              ? 'Update the compost batch information below.'
-              : 'Select Edit Active Batch before changing compost batch information.'}
-          </p>
-        </div>
+      {formEditable && (
+        <form className="batch-form" onSubmit={isCreating ? handleCreateBatch : handleRequestUpdate}>
+          <div className="batch-form-header">
+            <h4>{isCreating ? 'Create Compost Batch' : 'Edit Active Compost Batch'}</h4>
+            <p>Update the compost batch information below.</p>
+          </div>
 
-        <div className="batch-form-grid">
-          <label>
-            Batch name
-            <input
-              type="text"
-              value={form.batchName}
-              disabled={!formEditable || saving}
-              onChange={(event) => updateField('batchName', event.target.value)}
-            />
-          </label>
+          <div className="batch-form-grid">
+            <label>
+              Batch name
+              <input
+                type="text"
+                value={form.batchName}
+                disabled={saving}
+                onChange={(event) => updateField('batchName', event.target.value)}
+              />
+            </label>
 
-          <label>
-            Primary material
-            <input
-              type="text"
-              value={form.primaryMaterial}
-              disabled={!formEditable || saving}
-              onChange={(event) => updateField('primaryMaterial', event.target.value)}
-            />
-          </label>
+            <label>
+              Primary material
+              <input
+                type="text"
+                value={form.primaryMaterial}
+                disabled={saving}
+                onChange={(event) => updateField('primaryMaterial', event.target.value)}
+              />
+            </label>
 
-          <label>
-            Start date
-            <input
-              type="date"
-              value={form.startDate}
-              disabled={!formEditable || saving}
-              onChange={(event) => updateField('startDate', event.target.value)}
-            />
-          </label>
+            <label>
+              Start date
+              <input
+                type="date"
+                value={form.startDate}
+                disabled={saving}
+                onChange={(event) => updateField('startDate', event.target.value)}
+              />
+            </label>
 
-          <label>
-            Expected duration days
-            <input
-              type="number"
-              min="1"
-              value={form.expectedDurationDays}
-              disabled={!formEditable || saving}
-              onChange={(event) => updateField('expectedDurationDays', event.target.value)}
-            />
-          </label>
+            <label>
+              Expected duration days
+              <input
+                type="number"
+                min="1"
+                value={form.expectedDurationDays}
+                disabled={saving}
+                onChange={(event) => updateField('expectedDurationDays', event.target.value)}
+              />
+            </label>
 
-          <label>
-            Bin location
-            <input
-              type="text"
-              value={form.binLocation}
-              disabled={!formEditable || saving}
-              onChange={(event) => updateField('binLocation', event.target.value)}
-            />
-          </label>
+            <label>
+              Bin location
+              <input
+                type="text"
+                value={form.binLocation}
+                disabled={saving}
+                onChange={(event) => updateField('binLocation', event.target.value)}
+              />
+            </label>
 
-          <label>
-            Material description
-            <textarea
-              value={form.materialDescription}
-              disabled={!formEditable || saving}
-              onChange={(event) => updateField('materialDescription', event.target.value)}
-            />
-          </label>
+            <label>
+              Material description
+              <textarea
+                value={form.materialDescription}
+                disabled={saving}
+                onChange={(event) => updateField('materialDescription', event.target.value)}
+              />
+            </label>
 
-          <label className="batch-notes-field">
-            Notes
-            <textarea
-              value={form.notes}
-              disabled={!formEditable || saving}
-              onChange={(event) => updateField('notes', event.target.value)}
-            />
-          </label>
-        </div>
+            <label className="batch-notes-field">
+              Notes
+              <textarea
+                value={form.notes}
+                disabled={saving}
+                onChange={(event) => updateField('notes', event.target.value)}
+              />
+            </label>
+          </div>
 
+          <div className="batch-action-row">
+            {isCreating && (
+              <>
+                <button type="submit" className="primary-button" disabled={saving}>
+                  {saving ? 'Saving...' : 'Create Batch'}
+                </button>
+                <button type="button" className="secondary-button" onClick={handleCancelEdit} disabled={saving}>
+                  Cancel
+                </button>
+              </>
+            )}
+
+            {isEditing && (
+              <>
+                <button type="submit" className="primary-button" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button type="button" className="secondary-button" onClick={handleCancelEdit} disabled={saving}>
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+        </form>
+      )}
+
+      {mode === 'view' && (
         <div className="batch-action-row">
-          {isCreating && (
-            <>
-              <button type="submit" className="primary-button" disabled={saving}>
-                {saving ? 'Saving...' : 'Create Batch'}
-              </button>
-              <button type="button" className="secondary-button" onClick={handleCancelEdit} disabled={saving}>
-                Cancel
-              </button>
-            </>
-          )}
-
-          {isEditing && (
-            <>
-              <button type="submit" className="primary-button" disabled={saving}>
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
-              <button type="button" className="secondary-button" onClick={handleCancelEdit} disabled={saving}>
-                Cancel
-              </button>
-            </>
-          )}
-
-          {mode === 'view' && (
-            <>
-              <button type="button" className="primary-button" onClick={handleStartCreate} disabled={saving}>
-                Create Batch
-              </button>
-              <button type="button" className="secondary-button" onClick={() => handleStatus('READY')} disabled={saving}>
-                Mark READY
-              </button>
-              <button type="button" className="secondary-button" onClick={() => handleStatus('COMPLETED')} disabled={saving}>
-                Mark COMPLETED
-              </button>
-              <button type="button" className="secondary-button" onClick={() => handleStatus('CANCELLED')} disabled={saving}>
-                Mark CANCELLED
-              </button>
-            </>
-          )}
+          <button type="button" className="primary-button" onClick={handleStartCreate} disabled={saving}>
+            Create Batch
+          </button>
+          <button type="button" className="secondary-button" onClick={() => handleStatus('READY')} disabled={saving}>
+            Mark READY
+          </button>
+          <button type="button" className="secondary-button" onClick={() => handleStatus('COMPLETED')} disabled={saving}>
+            Mark COMPLETED
+          </button>
+          <button type="button" className="secondary-button" onClick={() => handleStatus('CANCELLED')} disabled={saving}>
+            Mark CANCELLED
+          </button>
         </div>
-      </form>
+      )}
 
       {batches.length > 0 && (
         <div className="batch-list">

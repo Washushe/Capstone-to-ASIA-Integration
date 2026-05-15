@@ -33,11 +33,11 @@ public class AuthService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public AuthResult register(RegisterRequest request, String ipAddress, String userAgent) {
-        String name = request.getName() == null ? "" : request.getName().trim();
-        String email = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
-        String password = request.getPassword();
-        String confirmPassword = request.getConfirmPassword();
+    public void validateRegisterRequest(RegisterRequest request) {
+        String name = request == null || request.getName() == null ? "" : request.getName().trim();
+        String email = request == null || request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
+        String password = request == null ? null : request.getPassword();
+        String confirmPassword = request == null ? null : request.getConfirmPassword();
 
         if (name.isBlank()) {
             throw new IllegalArgumentException("Full name is required.");
@@ -52,16 +52,28 @@ public class AuthService {
         }
 
         if (password == null || password.isBlank()) {
-            throw new IllegalArgumentException("Password is required.");
+            throw new IllegalArgumentException("Password field cannot be empty.");
         }
 
         if (password.length() < 8) {
             throw new IllegalArgumentException("Password must be at least 8 characters.");
         }
 
-        if (confirmPassword == null || !password.equals(confirmPassword)) {
-            throw new IllegalArgumentException("Confirm password must match the password.");
+        if (confirmPassword == null || confirmPassword.isBlank()) {
+            throw new IllegalArgumentException("Confirm password field cannot be empty.");
         }
+
+        if (password != null && !password.isBlank() && !password.equals(confirmPassword)) {
+            throw new IllegalArgumentException("Password dont match.");
+        }
+    }
+
+    public AuthResult register(RegisterRequest request, String ipAddress, String userAgent) {
+        validateRegisterRequest(request);
+
+        String name = request.getName() == null ? "" : request.getName().trim();
+        String email = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
+        String password = request.getPassword();
 
         UserResponse user = jdbcTemplate.queryForObject(
                 "CALL sp_register_user(?, ?, ?)",

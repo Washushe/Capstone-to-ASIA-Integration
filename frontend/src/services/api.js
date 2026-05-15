@@ -108,6 +108,25 @@ export async function registerUser(profile) {
   return storeAuthSession(data);
 }
 
+export async function sendOtpEmail(email) {
+  return request('/auth/send-otp', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: email.trim(),
+    }),
+  });
+}
+
+export async function verifyOtp(email, otp) {
+  return request('/auth/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: email.trim(),
+      otp: otp.trim(),
+    }),
+  });
+}
+
 export async function validateSession() {
   const data = await request('/auth/session', {
     method: 'GET',

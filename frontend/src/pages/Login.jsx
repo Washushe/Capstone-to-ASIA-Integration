@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginUser } from '../services/api.js';
+import { sanitizeInput } from '../utils/sanitize.js';
+import NotificationModal from '../components/NotificationModal.jsx';
 
 const authIntro = {
   title: 'Build Your Skills With Compost Intelligence',
   description:
     'Monitor compost health and stay on top of environmental conditions with live sensor history, alerts, and actuator response simulation.',
+};
+
+const preventPasswordPaste = (event) => {
+  event.preventDefault();
 };
 
 function Login({ onLogin }) {
@@ -19,6 +25,8 @@ function Login({ onLogin }) {
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [notification, setNotification] = useState({ isOpen: false, message: '', type: 'success' });
 
   const validate = () => {
     const validation = {};
@@ -84,7 +92,7 @@ function Login({ onLogin }) {
                 type="text"
                 value={credentials.email}
                 onChange={(e) =>
-                  setCredentials({ ...credentials, email: e.target.value })
+                  setCredentials({ ...credentials, email: sanitizeInput(e.target.value) })
                 }
               />
               {errors.email && (
@@ -94,13 +102,36 @@ function Login({ onLogin }) {
 
             <label>
               Password
-              <input
-                type="password"
-                value={credentials.password}
-                onChange={(e) =>
-                  setCredentials({ ...credentials, password: e.target.value })
-                }
-              />
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={credentials.password}
+                  onChange={(e) =>
+                    setCredentials({ ...credentials, password: sanitizeInput(e.target.value) })
+                  }
+                  onPaste={preventPasswordPaste}
+                  onDrop={preventPasswordPaste}
+                  style={{ width: '100%', paddingRight: '36px' }}
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowPassword((s) => !s)}
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    padding: '4px 8px',
+                  }}
+                >
+                  {showPassword ? '👁️‍🗨️' : '👁️'}
+                </button>
+              </div>
               {errors.password && (
                 <span className="auth-field-error">{errors.password}</span>
               )}
@@ -121,6 +152,13 @@ function Login({ onLogin }) {
           </div>
         </div>
       </div>
+
+      <NotificationModal
+        isOpen={notification.isOpen}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ ...notification, isOpen: false })}
+      />
     </div>
   );
 }
