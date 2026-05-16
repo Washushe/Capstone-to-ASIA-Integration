@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getThresholdSettings, saveThresholdSettings } from '../../services/api.js';
 import { getThresholds as getLocalThresholds, saveThresholds as saveLocalThresholds } from '../../services/mockSensors.js';
+import PasswordInput from '../PasswordInput.jsx';
 
 const defaultThresholds = {
   moistureMin: 50,
@@ -176,8 +177,7 @@ function ThresholdSection() {
 
             <label>
               Current password
-              <input
-                type="password"
+              <PasswordInput
                 value={currentPassword}
                 onChange={(event) => setCurrentPassword(event.target.value)}
                 autoFocus

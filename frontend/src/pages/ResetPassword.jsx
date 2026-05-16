@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { resetPassword } from '../services/api.js';
 import { sanitizeInput } from '../utils/sanitize.js';
 import NotificationModal from '../components/NotificationModal.jsx';
+import PasswordInput from '../components/PasswordInput.jsx';
 
 const authIntro = {
   title: 'Build Your Skills With Compost Intelligence',
@@ -93,8 +94,7 @@ function ResetPassword() {
           <form onSubmit={handleSubmit} className="auth-form">
             <label>
               New password
-              <input
-                type="password"
+              <PasswordInput
                 value={form.newPassword}
                 onPaste={(event) => event.preventDefault()}
                 onDrop={(event) => event.preventDefault()}
@@ -109,8 +109,7 @@ function ResetPassword() {
 
             <label>
               Confirm password
-              <input
-                type="password"
+              <PasswordInput
                 value={form.confirmPassword}
                 onPaste={(event) => event.preventDefault()}
                 onDrop={(event) => event.preventDefault()}

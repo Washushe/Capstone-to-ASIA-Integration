@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { loginUser } from '../services/api.js';
 import { sanitizeInput } from '../utils/sanitize.js';
 import NotificationModal from '../components/NotificationModal.jsx';
+import PasswordInput from '../components/PasswordInput.jsx';
 
 const authIntro = {
   title: 'Build Your Skills With Compost Intelligence',
@@ -25,7 +26,6 @@ function Login({ onLogin }) {
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [notification, setNotification] = useState({ isOpen: false, message: '', type: 'success' });
 
   const validate = () => {
@@ -102,36 +102,14 @@ function Login({ onLogin }) {
 
             <label>
               Password
-              <div style={{ position: 'relative', width: '100%' }}>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={credentials.password}
-                  onChange={(e) =>
-                    setCredentials({ ...credentials, password: sanitizeInput(e.target.value) })
-                  }
-                  onPaste={preventPasswordPaste}
-                  onDrop={preventPasswordPaste}
-                  style={{ width: '100%', paddingRight: '36px' }}
-                />
-                <button
-                  type="button"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  onClick={() => setShowPassword((s) => !s)}
-                  style={{
-                    position: 'absolute',
-                    right: '8px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '18px',
-                    padding: '4px 8px',
-                  }}
-                >
-                  {showPassword ? '👁️‍🗨️' : '👁️'}
-                </button>
-              </div>
+              <PasswordInput
+                value={credentials.password}
+                onChange={(e) =>
+                  setCredentials({ ...credentials, password: sanitizeInput(e.target.value) })
+                }
+                onPaste={preventPasswordPaste}
+                onDrop={preventPasswordPaste}
+              />
               {errors.password && (
                 <span className="auth-field-error">{errors.password}</span>
               )}

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { registerUser, sendOtpEmail, verifyOtp } from '../services/api.js';
 import { sanitizeInput } from '../utils/sanitize.js';
 import NotificationModal from '../components/NotificationModal.jsx';
+import PasswordInput from '../components/PasswordInput.jsx';
 
 const authIntro = {
   title: 'Build Your Skills With Compost Intelligence',
@@ -27,8 +28,6 @@ function Register({ onRegister }) {
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // OTP step
   const [otpSent, setOtpSent] = useState(false);
@@ -199,35 +198,14 @@ function Register({ onRegister }) {
 
           <label>
             Password
-            <div style={{ position: 'relative', width: '100%' }}>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={profile.password}
-                onChange={(e) =>
-                  setProfile({ ...profile, password: sanitizeInput(e.target.value) })
-                }
-                onPaste={preventPasswordPaste}
-                onDrop={preventPasswordPaste}
-                style={{ width: '100%', paddingRight: '36px' }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((s) => !s)}
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '18px',
-                  padding: '4px 8px',
-                }}
-              >
-                {showPassword ? '👁️‍🗨️' : '👁️'}
-              </button>
-            </div>
+            <PasswordInput
+              value={profile.password}
+              onChange={(e) =>
+                setProfile({ ...profile, password: sanitizeInput(e.target.value) })
+              }
+              onPaste={preventPasswordPaste}
+              onDrop={preventPasswordPaste}
+            />
             {errors.password && (
               <span className="auth-field-error">{errors.password}</span>
             )}
@@ -235,35 +213,14 @@ function Register({ onRegister }) {
 
           <label>
             Confirm password
-            <div style={{ position: 'relative', width: '100%' }}>
-              <input
-                type={showConfirmPassword ? 'text' : 'password'}
-                value={profile.confirmPassword}
-                onChange={(e) =>
-                  setProfile({ ...profile, confirmPassword: sanitizeInput(e.target.value) })
-                }
-                onPaste={preventPasswordPaste}
-                onDrop={preventPasswordPaste}
-                style={{ width: '100%', paddingRight: '36px' }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword((s) => !s)}
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '18px',
-                  padding: '4px 8px',
-                }}
-              >
-                {showConfirmPassword ? '👁️‍🗨️' : '👁️'}
-              </button>
-            </div>
+            <PasswordInput
+              value={profile.confirmPassword}
+              onChange={(e) =>
+                setProfile({ ...profile, confirmPassword: sanitizeInput(e.target.value) })
+              }
+              onPaste={preventPasswordPaste}
+              onDrop={preventPasswordPaste}
+            />
             {errors.confirmPassword && (
               <span className="auth-field-error">{errors.confirmPassword}</span>
             )}

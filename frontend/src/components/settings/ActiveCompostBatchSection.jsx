@@ -7,6 +7,7 @@ import {
   updateCompostBatch,
   updateCompostBatchStatus,
 } from '../../services/api.js';
+import PasswordInput from '../PasswordInput.jsx';
 
 function todayString() {
   return new Date().toISOString().slice(0, 10);
@@ -466,8 +467,7 @@ function ActiveCompostBatchSection() {
 
             <label>
               Current password
-              <input
-                type="password"
+              <PasswordInput
                 value={currentPassword}
                 onChange={(event) => setCurrentPassword(event.target.value)}
                 autoFocus
